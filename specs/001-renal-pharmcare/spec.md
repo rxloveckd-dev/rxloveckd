@@ -336,8 +336,9 @@ assessments after the effective date use it and earlier assessments still show t
 **Clinic visit record, medication review and DRPs**
 
 - **FR-008a**: Pharmacists MUST be able to create a visit record per clinic visit containing:
-  follow-up visit number, visit date, one or more lab rows (date, GFR, Cr, GFR percent change versus
-  the previous GFR, albumin with unit), current medications, medication-taking correct/incorrect,
+  follow-up visit number, visit date, lab rows (date, GFR, GFR percent change versus the previous
+  GFR, HbA1c, albumin, potassium, blood pressure systolic/diastolic), current medications, whether
+  the patient is on an ACEI/ARB (yes/no, with a required reason when no), medication-taking correct/incorrect,
   herbal medicine or painkiller use (with details), diet controlled or not, seasoning/salt
   reduction needed or already adjusted, further adjustments needed (free text), and the recording
   pharmacist.
@@ -519,8 +520,8 @@ assessments after the effective date use it and earlier assessments still show t
   used as the system of record. Google Drive receives report exports only, through a hospital
   account and folder approved by the project owner; patient-level exports to Drive require the
   same permission as other patient-level exports.
-- Usage is on hospital desktop browsers on the internal network; mobile-optimized use is out of
-  scope.
+- Usage is on hospital desktop browsers and on phones (layout works from 360 px wide); access is
+  over the hospital network.
 - Audit and record retention follow hospital policy; the application keeps records indefinitely
   until a policy period is configured.
 - Non-goals (from the project document): replacing HOSxP XE, autonomous diagnosis or medication

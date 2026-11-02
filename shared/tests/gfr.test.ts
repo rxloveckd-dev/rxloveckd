@@ -56,6 +56,13 @@ describe('labFlags', () => {
       .toEqual(['stale']);
   });
 
+  it('flags an implausible HbA1c', () => {
+    expect(labFlags('hba1c', { value: 45, collectedAt: new Date('2026-10-30') }, today, DEFAULT_RULES))
+      .toContain('implausible');
+    expect(labFlags('hba1c', { value: 7.2, collectedAt: new Date('2026-10-30') }, today, DEFAULT_RULES))
+      .toEqual([]);
+  });
+
   it('returns no flags for a recent plausible value', () => {
     expect(labFlags('gfr', { value: 40, collectedAt: new Date('2026-10-01') }, today, DEFAULT_RULES))
       .toEqual([]);

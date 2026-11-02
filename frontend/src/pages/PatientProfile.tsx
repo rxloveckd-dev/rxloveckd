@@ -16,6 +16,8 @@ interface VisitRow {
   seasoning: 'reduce_needed' | 'adjusted';
   furtherAdjustments: string | null;
   nextAppointment: string | null;
+  aceiArb: 'yes' | 'no' | null;
+  aceiArbNoReason: string | null;
   pharmacistName: string;
 }
 interface LabRow {
@@ -69,6 +71,11 @@ function Visits({ id }: { id: string }) {
       {data.items.map((v) => (
         <Section key={v.id} title={`ติดตามครั้งที่ ${v.visitNo}`} action={<span className="muted">{thDate(v.visitDate)}</span>}>
           <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 14px' }}>
+            <dt className="muted">ยากลุ่ม ACEI/ARB</dt>
+            <dd style={{ margin: 0 }}>
+              {v.aceiArb ? LABELS.aceiArb[v.aceiArb] : '–'}
+              {v.aceiArb === 'no' && v.aceiArbNoReason ? ` เพราะ${v.aceiArbNoReason}` : ''}
+            </dd>
             <dt className="muted">การกินยา</dt>
             <dd style={{ margin: 0 }} className={v.medicationTaking === 'incorrect' ? 'down' : ''}>{LABELS.medicationTaking[v.medicationTaking]}</dd>
             <dt className="muted">ยาสมุนไพร/ยาแก้ปวด</dt>
@@ -99,23 +106,23 @@ function Labs({ id }: { id: string }) {
   if (!data.items.length) return <Empty>ยังไม่มีผลแล็บ บันทึกได้ในหน้าการติดตาม</Empty>;
   return (
     <div className="table-wrap">
-      <table>
+      <table className="stack">
         <thead>
-          <tr><th>วันที่ตรวจ</th><th>รายการ</th><th className="num">ค่า</th><th>หน่วย</th><th className="num">ครั้งก่อน</th><th className="num">เปลี่ยนแปลง</th><th>ที่มา</th></tr>
+          <tr><th>รายการ</th><th>วันที่ตรวจ</th><th className="num">ค่า</th><th>หน่วย</th><th className="num">ครั้งก่อน</th><th className="num">เปลี่ยนแปลง</th><th>ที่มา</th></tr>
         </thead>
         <tbody>
           {data.items.map((l) => (
             <tr key={l.id}>
-              <td>{thDate(l.collectedAt)}</td>
-              <td>{LABELS.labTest[l.test]}</td>
-              <td className="num">
+              <td className="lead">{LABELS.labTest[l.test] ?? l.test}</td>
+              <td data-label="วันที่ตรวจ">{thDate(l.collectedAt)}</td>
+              <td data-label="ค่า" className="num">
                 {num(l.value, 2)}
                 {l.flags.includes('implausible') && <div className="down" style={{ fontSize: '0.8rem' }}>ค่าผิดปกติ ตรวจสอบ</div>}
               </td>
-              <td>{l.unit}</td>
-              <td className="num">{num(l.previous, 2)}</td>
-              <td className={`num ${l.changePct !== null && l.changePct <= -10 ? 'down' : ''}`}>{l.test === 'gfr' ? pct(l.changePct) : ''}</td>
-              <td className="muted">{l.source}</td>
+              <td data-label="หน่วย">{l.unit}</td>
+              <td data-label="ครั้งก่อน" className="num">{num(l.previous, 2)}</td>
+              <td data-label="เปลี่ยนแปลง" className={`num ${l.changePct !== null && l.changePct <= -10 ? 'down' : ''}`}>{l.test === 'gfr' ? pct(l.changePct) : ''}</td>
+              <td data-label="ที่มา" className="muted">{l.source}</td>
             </tr>
           ))}
         </tbody>
@@ -133,17 +140,17 @@ function Medications({ id }: { id: string }) {
   if (!data.items.length) return <Empty>ยังไม่มีรายการยา บันทึกได้ในหน้าการติดตาม</Empty>;
   return (
     <div className="table-wrap">
-      <table>
+      <table className="stack">
         <thead><tr><th>ชื่อยา</th><th>ความแรง</th><th>วิธีใช้</th><th>กลุ่มยา</th><th>สถานะ</th><th /></tr></thead>
         <tbody>
           {data.items.map((m) => (
             <tr key={m.id} style={m.status === 'stopped' ? { color: 'var(--ink-soft)' } : undefined}>
-              <td>{m.drugName}</td>
-              <td>{m.strength ?? '–'}</td>
-              <td>{m.directions ?? '–'}</td>
-              <td>{LABELS.drugClass[m.drugClass]}</td>
-              <td>{m.status === 'active' ? 'ใช้อยู่' : 'หยุดแล้ว'}</td>
-              <td>
+              <td className="lead">{m.drugName}</td>
+              <td data-label="ความแรง">{m.strength ?? '–'}</td>
+              <td data-label="วิธีใช้">{m.directions ?? '–'}</td>
+              <td data-label="กลุ่มยา">{LABELS.drugClass[m.drugClass]}</td>
+              <td data-label="สถานะ">{m.status === 'active' ? 'ใช้อยู่' : 'หยุดแล้ว'}</td>
+              <td data-label="">
                 <button
                   className="btn secondary small"
                   disabled={update.isPending}

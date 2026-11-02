@@ -12,6 +12,7 @@ const visitBody = (overrides: Record<string, unknown> = {}) => ({
   seasoning: 'reduce_needed',
   furtherAdjustments: 'ทบทวนวิธีกินยา',
   nextAppointment: '2026-11-05',
+  aceiArb: 'yes',
   labs: [{ test: 'gfr', value: 42, unit: 'mL/min/1.73m²', collectedAt: '2026-09-28' }],
   medications: [{ drugName: 'Enalapril', strength: '5 mg', directions: '1 เม็ด เช้า', drugClass: 'acei' }],
   ...overrides,
@@ -36,6 +37,37 @@ describe('visits (US2)', () => {
     expect(visits.body.items[0].pharmacistName).toBe('ภก.ทดสอบ');
     expect((await pharm.get(`/api/patients/${id}/labs`)).body.items).toHaveLength(1);
     expect((await pharm.get(`/api/patients/${id}/medications`)).body.items).toHaveLength(1);
+  });
+
+  it('requires a reason when the patient is not on an ACEI/ARB', async () => {
+    const { pharm, id } = await newPatient();
+    const noReason = await pharm.post(`/api/patients/${id}/visits`).send(visitBody({ aceiArb: 'no' }));
+    expect(noReason.status).toBe(400);
+    expect(noReason.body.error.message).toBe('กรุณาระบุเหตุผลที่ไม่ได้รับยากลุ่ม ACEI/ARB');
+
+    const ok = await pharm
+      .post(`/api/patients/${id}/visits`)
+      .send(visitBody({ aceiArb: 'no', aceiArbNoReason: 'โพแทสเซียมสูง แพทย์หยุดยา' }))
+      .expect(201);
+    expect(ok.body.visit.aceiArbNoReason).toBe('โพแทสเซียมสูง แพทย์หยุดยา');
+  });
+
+  it('stores HbA1c and blood pressure as lab results', async () => {
+    const { pharm, id } = await newPatient();
+    await pharm
+      .post(`/api/patients/${id}/visits`)
+      .send(
+        visitBody({
+          labs: [
+            { test: 'hba1c', value: 7.2, unit: '%', collectedAt: '2026-09-28' },
+            { test: 'sbp', value: 138, unit: 'mmHg', collectedAt: '2026-10-01' },
+            { test: 'dbp', value: 84, unit: 'mmHg', collectedAt: '2026-10-01' },
+          ],
+        }),
+      )
+      .expect(201);
+    const labs = await pharm.get(`/api/patients/${id}/labs`).expect(200);
+    expect(labs.body.items.map((l: { test: string }) => l.test).sort()).toEqual(['dbp', 'hba1c', 'sbp']);
   });
 
   it('rejects a next appointment before the visit date', async () => {

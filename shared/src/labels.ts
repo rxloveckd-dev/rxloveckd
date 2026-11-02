@@ -11,6 +11,7 @@ export const LABELS = {
   labTest: {
     gfr: 'GFR',
     scr: 'Cr',
+    hba1c: 'HbA1c',
     albumin: 'Albumin',
     potassium: 'โพแทสเซียม (K)',
     sbp: 'ความดันตัวบน',
@@ -19,12 +20,14 @@ export const LABELS = {
   labUnit: {
     gfr: 'mL/min/1.73m²',
     scr: 'mg/dL',
+    hba1c: '%',
     albumin: 'mg/g',
     potassium: 'mmol/L',
     sbp: 'mmHg',
     dbp: 'mmHg',
   },
   medicationTaking: { correct: 'ถูกต้อง', incorrect: 'ไม่ถูกต้อง' },
+  aceiArb: { yes: 'มี', no: 'ไม่มี' },
   seasoning: { reduce_needed: 'ควรปรับลด', adjusted: 'ปรับแล้ว' },
   drugClass: {
     acei: 'ACEI',

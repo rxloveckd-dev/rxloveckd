@@ -114,9 +114,11 @@ async function main() {
         seasoning: 'reduce_needed',
         furtherAdjustments: 'ลดเค็ม ทบทวนการกินยา',
         nextAppointment: visit2,
+        aceiArb: 'yes',
         pharmacistId: pharmacist.id,
       },
     });
+    const noAceiArb = i % 6 === 5;
     const v2 = await prisma.visit.create({
       data: {
         patientId: patient.id,
@@ -129,6 +131,8 @@ async function main() {
         seasoning: rand() < 0.5 ? 'adjusted' : 'reduce_needed',
         furtherAdjustments: incorrect ? 'สอนวิธีกินยาความดันใหม่' : null,
         nextAppointment: daysFromToday(apptOffset),
+        aceiArb: noAceiArb ? 'no' : 'yes',
+        aceiArbNoReason: noAceiArb ? 'โพแทสเซียมสูง แพทย์หยุดยาไว้ก่อน' : null,
         pharmacistId: pharmacist.id,
       },
     });
@@ -142,6 +146,9 @@ async function main() {
         data: [
           { patientId: patient.id, visitId: visit.id, test: 'gfr', value: g, unit: 'mL/min/1.73m²', collectedAt: date, origin: 'user_entered' },
           { patientId: patient.id, visitId: visit.id, test: 'scr', value: scr(g), unit: 'mg/dL', collectedAt: date, origin: 'user_entered' },
+          { patientId: patient.id, visitId: visit.id, test: 'hba1c', value: Math.round((5.6 + rand() * 4) * 10) / 10, unit: '%', collectedAt: date, origin: 'user_entered' },
+          { patientId: patient.id, visitId: visit.id, test: 'sbp', value: Math.round(118 + rand() * 40), unit: 'mmHg', collectedAt: date, origin: 'user_entered' },
+          { patientId: patient.id, visitId: visit.id, test: 'dbp', value: Math.round(70 + rand() * 20), unit: 'mmHg', collectedAt: date, origin: 'user_entered' },
           { patientId: patient.id, visitId: visit.id, test: 'albumin', value: Math.round(20 + rand() * 300), unit: 'mg/g', collectedAt: date, origin: 'user_entered' },
           { patientId: patient.id, visitId: visit.id, test: 'potassium', value: Math.round((3.8 + rand() * (g < 20 ? 2.2 : 1.2)) * 10) / 10, unit: 'mmol/L', collectedAt: date, origin: 'user_entered' },
         ],

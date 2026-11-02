@@ -99,10 +99,12 @@ export function App() {
           </>
         )}
         <div className="side-foot">
-          {user.displayName}
-          <br />
-          {LABELS.role[user.role]}
-          <br />
+          <span className="who">
+            {user.displayName}
+            <br />
+            {LABELS.role[user.role]}
+            <br />
+          </span>
           <button className="btn secondary small" onClick={logout}>ออกจากระบบ</button>
         </div>
       </nav>

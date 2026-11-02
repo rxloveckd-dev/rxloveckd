@@ -14,6 +14,7 @@ describe('dashboard and monthly report (US5, US6)', () => {
       herbalOrPainkiller: true,
       dietControlled: false,
       seasoning: 'reduce_needed',
+      aceiArb: 'yes',
       labs: [],
       medications: [],
     };

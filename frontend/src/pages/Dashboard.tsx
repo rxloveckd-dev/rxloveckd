@@ -122,18 +122,18 @@ export function Dashboard() {
       {data.insufficientData.length > 0 && (
         <Section title="ข้อมูลแล็บไม่พอหรือเก่าเกินกำหนด">
           <div className="table-wrap">
-            <table>
+            <table className="stack">
               <thead>
                 <tr><th>ผู้ป่วย</th><th>HN</th><th>ระยะ</th><th>GFR ล่าสุด</th><th className="num">เปลี่ยนแปลง</th></tr>
               </thead>
               <tbody>
                 {data.insufficientData.map((p) => (
                   <tr key={p.id} className="clickable" onClick={() => navigate(`/patients/${p.id}`)}>
-                    <td>{p.title}{p.firstName} {p.lastName}</td>
-                    <td>{p.hn}</td>
-                    <td><Stage stage={p.stage} /></td>
-                    <td>{p.latestGfr ? `${num(p.latestGfr.value, 1)} (${thDate(p.latestGfr.collectedAt)})` : 'ยังไม่มีผล'}</td>
-                    <td className="num">{pct(p.gfrChangePct)}</td>
+                    <td className="lead">{p.title}{p.firstName} {p.lastName}</td>
+                    <td data-label="HN">{p.hn}</td>
+                    <td data-label="ระยะ"><Stage stage={p.stage} /></td>
+                    <td data-label="GFR ล่าสุด">{p.latestGfr ? `${num(p.latestGfr.value, 1)} (${thDate(p.latestGfr.collectedAt)})` : 'ยังไม่มีผล'}</td>
+                    <td data-label="เปลี่ยนแปลง" className="num">{pct(p.gfrChangePct)}</td>
                   </tr>
                 ))}
               </tbody>

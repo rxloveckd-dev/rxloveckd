@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ckdEpi2021, EGFR_METHOD, gfrChangePercent, LABELS, visitCreateSchema } from '@rx/shared';
+import { gfrChangePercent, LABELS, visitCreateSchema } from '@rx/shared';
 import { ApiError, usePatient, usePatientMutation } from '../api';
 import { Choice, ErrorState, Field, Loading, Section } from '../components/ui';
 import { num, pct, todayIso } from '../format';
@@ -24,9 +24,14 @@ export function VisitNew() {
   const [visitDate, setVisitDate] = useState(todayIso());
   const [labDate, setLabDate] = useState(todayIso());
   const [gfr, setGfr] = useState('');
-  const [scr, setScr] = useState('');
+  const [hba1c, setHba1c] = useState('');
   const [albumin, setAlbumin] = useState('');
   const [potassium, setPotassium] = useState('');
+  const [bpDate, setBpDate] = useState(todayIso());
+  const [sbp, setSbp] = useState('');
+  const [dbp, setDbp] = useState('');
+  const [aceiArb, setAceiArb] = useState<'' | 'yes' | 'no'>('');
+  const [aceiArbNoReason, setAceiArbNoReason] = useState('');
   const [taking, setTaking] = useState<'' | 'correct' | 'incorrect'>('');
   const [herbal, setHerbal] = useState<'' | 'yes' | 'no'>('');
   const [herbalDetail, setHerbalDetail] = useState('');
@@ -41,8 +46,6 @@ export function VisitNew() {
   if (patient.error || !patient.data) return <ErrorState error={patient.error} />;
   const p = patient.data.patient;
 
-  const scrNum = Number(scr);
-  const calculated = scr && scrNum > 0 ? ckdEpi2021({ scrMgDl: scrNum, ageYears: p.age, sex: p.sex }) : null;
   const gfrNum = gfr ? Number(gfr) : null;
   const change = gfrChangePercent(gfrNum, p.latestGfr?.value ?? null);
 
@@ -51,9 +54,11 @@ export function VisitNew() {
     setError('');
     const labs = [
       gfr && { test: 'gfr', value: gfr, unit: LABELS.labUnit.gfr, collectedAt: labDate },
-      scr && { test: 'scr', value: scr, unit: LABELS.labUnit.scr, collectedAt: labDate },
+      hba1c && { test: 'hba1c', value: hba1c, unit: LABELS.labUnit.hba1c, collectedAt: labDate },
       albumin && { test: 'albumin', value: albumin, unit: LABELS.labUnit.albumin, collectedAt: labDate },
       potassium && { test: 'potassium', value: potassium, unit: LABELS.labUnit.potassium, collectedAt: labDate },
+      sbp && { test: 'sbp', value: sbp, unit: LABELS.labUnit.sbp, collectedAt: bpDate },
+      dbp && { test: 'dbp', value: dbp, unit: LABELS.labUnit.dbp, collectedAt: bpDate },
     ].filter(Boolean);
     const body = {
       visitDate,
@@ -64,14 +69,17 @@ export function VisitNew() {
       seasoning: seasoning || undefined,
       furtherAdjustments: further || null,
       nextAppointment: next || null,
+      aceiArb: aceiArb || undefined,
+      aceiArbNoReason: aceiArb === 'no' ? aceiArbNoReason : null,
       labs,
       medications: meds.filter((m) => m.drugName.trim()),
     };
     const parsed = visitCreateSchema.safeParse(body);
     if (!parsed.success) {
-      setError('กรุณาเลือกให้ครบทุกข้อในส่วนบันทึก (การกินยา ยาสมุนไพร อาหาร เครื่องปรุง) และตรวจวันนัด');
-      const nextIssue = parsed.error.issues.find((i) => i.path[0] === 'nextAppointment');
-      if (nextIssue) setError(nextIssue.message);
+      const specific = parsed.error.issues.find((i) =>
+        ['nextAppointment', 'aceiArb', 'aceiArbNoReason'].includes(String(i.path[0])),
+      );
+      setError(specific?.message ?? 'กรุณาเลือกให้ครบทุกข้อในส่วน Note (การกินยา ยาสมุนไพร อาหาร เครื่องปรุง)');
       return;
     }
     try {
@@ -97,27 +105,41 @@ export function VisitNew() {
       <Section title="ผลแล็บ">
         <div className="grid-3">
           <Field label="วันที่ตรวจ" htmlFor="ld"><input id="ld" type="date" value={labDate} onChange={(e) => setLabDate(e.target.value)} /></Field>
-          <Field label="Cr (mg/dL)" htmlFor="scr"><input id="scr" inputMode="decimal" value={scr} onChange={(e) => setScr(e.target.value)} /></Field>
           <Field label="GFR (mL/min/1.73m²)" htmlFor="gfr">
             <input id="gfr" inputMode="decimal" value={gfr} onChange={(e) => setGfr(e.target.value)} />
-            {calculated !== null && (
-              <span className="muted" style={{ fontSize: '0.85rem' }}>
-                คำนวณจาก Cr ได้ {num(calculated, 1)} ({EGFR_METHOD}){' '}
-                {!gfr && <button type="button" className="btn secondary small" onClick={() => setGfr(String(calculated))}>ใช้ค่านี้</button>}
-              </span>
-            )}
           </Field>
           <Field label="เพิ่ม/ลด เทียบครั้งก่อน">
             <div className={change !== null && change <= -10 ? 'down' : ''} style={{ paddingTop: 8 }}>
               {change === null ? (p.latestGfr ? 'กรอก GFR เพื่อคำนวณ' : 'ไม่มีผลครั้งก่อน') : `${pct(change)} (ครั้งก่อน ${num(p.latestGfr?.value, 1)})`}
             </div>
           </Field>
+          <Field label="HbA1c (%)" htmlFor="a1c"><input id="a1c" inputMode="decimal" value={hba1c} onChange={(e) => setHba1c(e.target.value)} /></Field>
           <Field label="Albumin (mg/g)" htmlFor="alb"><input id="alb" inputMode="decimal" value={albumin} onChange={(e) => setAlbumin(e.target.value)} /></Field>
           <Field label="โพแทสเซียม (mmol/L)" htmlFor="k"><input id="k" inputMode="decimal" value={potassium} onChange={(e) => setPotassium(e.target.value)} /></Field>
+        </div>
+        <div className="grid-3" style={{ marginTop: 14 }}>
+          <Field label="วันที่วัดความดัน" htmlFor="bpd"><input id="bpd" type="date" value={bpDate} onChange={(e) => setBpDate(e.target.value)} /></Field>
+          <Field label="ความดันโลหิต BP (mmHg)">
+            <div className="bp">
+              <input aria-label="ความดันตัวบน" inputMode="numeric" placeholder="ตัวบน" value={sbp} onChange={(e) => setSbp(e.target.value)} />
+              <span aria-hidden="true">/</span>
+              <input aria-label="ความดันตัวล่าง" inputMode="numeric" placeholder="ตัวล่าง" value={dbp} onChange={(e) => setDbp(e.target.value)} />
+            </div>
+          </Field>
         </div>
       </Section>
 
       <Section title="ยาผู้ป่วย" action={<button type="button" className="btn secondary small" onClick={() => setMeds([...meds, blankMed()])}>เพิ่มยา</button>}>
+        <div className="grid-2" style={{ marginBottom: 14 }}>
+          <Field label="ยากลุ่ม ACEI/ARB">
+            <Choice name="aceiArb" value={aceiArb} options={[['yes', 'มี'], ['no', 'ไม่มี']]} onChange={setAceiArb} />
+          </Field>
+          {aceiArb === 'no' && (
+            <Field label="ไม่มีเพราะ" htmlFor="anr">
+              <input id="anr" value={aceiArbNoReason} onChange={(e) => setAceiArbNoReason(e.target.value)} placeholder="เช่น โพแทสเซียมสูง แพทย์หยุดยา ไม่มีข้อบ่งใช้" />
+            </Field>
+          )}
+        </div>
         {meds.length === 0 && <p className="muted" style={{ margin: 0 }}>ถ้ามียาใหม่หรือเปลี่ยนยา กด "เพิ่มยา" ยาเดิมดูได้ในหน้าผู้ป่วย</p>}
         {meds.map((m, i) => (
           <div key={i} className="grid-3" style={{ marginBottom: 10 }}>

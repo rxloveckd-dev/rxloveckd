@@ -1,12 +1,13 @@
 import type { ClinicalRules } from './rules';
 
-export type LabTest = 'gfr' | 'scr' | 'albumin' | 'potassium' | 'sbp' | 'dbp';
+export type LabTest = 'gfr' | 'scr' | 'hba1c' | 'albumin' | 'potassium' | 'sbp' | 'dbp';
 export type DataFlag = 'missing' | 'stale' | 'implausible';
 
 /** Physiologically plausible ranges; values outside are shown for checking, never used silently. */
 export const PLAUSIBLE_RANGE: Record<LabTest, [number, number]> = {
   gfr: [0, 200],
   scr: [0.1, 25],
+  hba1c: [3, 20],
   albumin: [0, 10000],
   potassium: [1.5, 9],
   sbp: [50, 260],

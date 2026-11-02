@@ -6,7 +6,8 @@ const optionalText = z.string().trim().max(2000).optional().nullable();
 
 export const SEX = ['male', 'female'] as const;
 export const PROGRAM_STATUS = ['active', 'exited_krt', 'transferred', 'deceased', 'withdrawn'] as const;
-export const LAB_TESTS = ['gfr', 'scr', 'albumin', 'potassium', 'sbp', 'dbp'] as const;
+export const LAB_TESTS = ['gfr', 'scr', 'hba1c', 'albumin', 'potassium', 'sbp', 'dbp'] as const;
+export const ACEI_ARB = ['yes', 'no'] as const;
 export const MEDICATION_TAKING = ['correct', 'incorrect'] as const;
 export const SEASONING = ['reduce_needed', 'adjusted'] as const;
 export const DRUG_CLASS = ['acei', 'arb', 'nsaid', 'diabetes', 'other_antihypertensive', 'diuretic', 'other'] as const;
@@ -74,13 +75,20 @@ export const visitCreateSchema = z
     seasoning: z.enum(SEASONING),
     furtherAdjustments: optionalText,
     nextAppointment: isoDate.optional().nullable(),
+    aceiArb: z.enum(ACEI_ARB, { errorMap: () => ({ message: 'กรุณาเลือกว่ามียากลุ่ม ACEI/ARB หรือไม่' }) }),
+    aceiArbNoReason: optionalText,
     labs: z.array(labCreateSchema).max(20).default([]),
     medications: z.array(medicationCreateSchema).max(50).default([]),
   })
   .refine((v) => !v.nextAppointment || v.nextAppointment >= v.visitDate, {
     message: 'วันนัดครั้งต่อไปต้องไม่ก่อนวันที่มา',
     path: ['nextAppointment'],
-  });
+  })
+  .refine((v) => v.aceiArb === 'yes' || !!v.aceiArbNoReason, {
+    message: 'กรุณาระบุเหตุผลที่ไม่ได้รับยากลุ่ม ACEI/ARB',
+    path: ['aceiArbNoReason'],
+  })
+  .transform((v) => (v.aceiArb === 'yes' ? { ...v, aceiArbNoReason: null } : v));
 export type VisitCreate = z.infer<typeof visitCreateSchema>;
 
 export const drpCreateSchema = z.object({

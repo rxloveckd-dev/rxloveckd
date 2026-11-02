@@ -63,6 +63,8 @@ model Visit {
   seasoning          String // reduce_needed | adjusted
   furtherAdjustments String?
   nextAppointment    DateTime?
+  aceiArb            String? // yes | no (null for visits recorded before this field existed)
+  aceiArbNoReason    String?
   pharmacistId       String
   createdAt          DateTime @default(now())
 
@@ -80,7 +82,7 @@ model LabResult {
   id          String   @id @default(cuid())
   patientId   String
   visitId     String?
-  test        String // gfr | scr | albumin | potassium | sbp | dbp
+  test        String // gfr | scr | hba1c | albumin | potassium | sbp | dbp
   value       Float
   unit        String
   collectedAt DateTime

@@ -63,7 +63,7 @@ export function Patients() {
         ) : (
           <>
             <div className="table-wrap">
-              <table>
+              <table className="stack">
                 <thead>
                   <tr>
                     <th>สี</th><th>ชื่อ-สกุล</th><th>HN</th><th>อายุ</th><th>ระยะ</th>
@@ -73,17 +73,17 @@ export function Patients() {
                 <tbody>
                   {data.items.map((p) => (
                     <tr key={p.id} className="clickable" onClick={() => navigate(`/patients/${p.id}`)}>
-                      <td><Urgency color={p.color} /></td>
-                      <td>
+                      <td data-label="สี"><Urgency color={p.color} /></td>
+                      <td className="lead">
                         <Link to={`/patients/${p.id}`} onClick={(e) => e.stopPropagation()}>{p.title}{p.firstName} {p.lastName}</Link>
-                        {p.reasons.length > 0 && <div className="muted" style={{ fontSize: '0.85rem' }}>{p.reasons.join(', ')}</div>}
+                        {p.reasons.length > 0 && <div className="muted" style={{ fontSize: '0.85rem', fontWeight: 400 }}>{p.reasons.join(', ')}</div>}
                       </td>
-                      <td>{p.hn}</td>
-                      <td>{p.age}</td>
-                      <td><Stage stage={p.stage} /></td>
-                      <td className="num">{p.latestGfr ? num(p.latestGfr.value, 1) : '–'}</td>
-                      <td className={`num ${p.gfrChangePct !== null && p.gfrChangePct <= -10 ? 'down' : ''}`}>{pct(p.gfrChangePct)}</td>
-                      <td>
+                      <td data-label="HN">{p.hn}</td>
+                      <td data-label="อายุ">{p.age}</td>
+                      <td data-label="ระยะ"><Stage stage={p.stage} /></td>
+                      <td data-label="GFR ล่าสุด" className="num">{p.latestGfr ? num(p.latestGfr.value, 1) : '–'}</td>
+                      <td data-label="เปลี่ยนแปลง" className={`num ${p.gfrChangePct !== null && p.gfrChangePct <= -10 ? 'down' : ''}`}>{pct(p.gfrChangePct)}</td>
+                      <td data-label="นัดครั้งต่อไป">
                         {thDate(p.nextAppointment)}
                         {p.appointment === 'missed' && <div className="down" style={{ fontSize: '0.85rem' }}>เลยนัด</div>}
                       </td>
