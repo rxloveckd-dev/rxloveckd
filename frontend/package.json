@@ -9,7 +9,7 @@
     "build:pages": "vite build --mode pages --outDir dist-pages && node -e \"require('fs').copyFileSync('dist-pages/index.html','dist-pages/404.html')\"",
     "preview": "vite preview",
     "typecheck": "tsc -p .",
-    "build:gas": "vite build --mode gas --outDir dist-gas && node -e \"require('fs').copyFileSync('dist-gas/index.html','../apps-script/Index.html')\""
+    "build:gas": "vite build --mode gas --outDir dist-gas && node scripts/gas-html.cjs"
   },
   "dependencies": {
     "@rx/shared": "*",

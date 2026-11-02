@@ -15,6 +15,11 @@ export default defineConfig(({ mode }) => ({
     'import.meta.env.VITE_SHEETS_API_URL': JSON.stringify(mode === 'pages' ? (process.env.SHEETS_API_URL ?? '') : ''),
   },
   plugins: mode === 'gas' ? [react(), viteSingleFile()] : [react()],
+  // Apps Script's HtmlService does not run <script type="module">: build a classic script instead.
+  build:
+    mode === 'gas'
+      ? { target: 'es2019', modulePreload: false, rollupOptions: { output: { format: 'iife', inlineDynamicImports: true } } }
+      : undefined,
   server: {
     port: 5173,
     proxy: { '/api': 'http://localhost:4000' },
