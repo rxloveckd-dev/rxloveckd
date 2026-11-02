@@ -344,3 +344,48 @@ td.num, th.num { text-align: right; }
   .stage-strip { margin-top: 6px; }
   .login-panel { padding: 24px 16px 40px; place-items: start center; }
 }
+
+/* ---------- monthly report (compact dashboard) */
+.report-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.month-nav { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.month-pick { position: relative; display: inline-flex; align-items: center; padding: 4px 14px; border: 1px solid var(--rule); border-radius: 999px; background: var(--sheet); font-weight: 600; cursor: pointer; }
+.month-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.month-pick:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.report-body { transition: opacity 0.25s; }
+.report-body.refreshing { opacity: 0.55; }
+
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 16px; }
+.kpi { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--radius); padding: 10px 14px; display: flex; flex-direction: column; }
+.kpi-label { color: var(--ink-soft); font-size: 0.88rem; }
+.kpi-value { font-size: 1.9rem; font-weight: 700; line-height: 1.15; }
+.kpi-delta { font-size: 0.8rem; color: var(--ink-soft); }
+.kpi-delta.up { color: var(--green); }
+.kpi-delta.down { color: var(--red); }
+
+.report-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 12px; align-items: start; }
+.card .column-chart svg { max-height: 240px; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--radius); padding: 12px 16px; min-width: 0; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.card-head h3 { font-size: 1rem; }
+.card-head .muted { font-size: 0.82rem; }
+.card .share-bars { gap: 8px; margin-top: 8px; }
+.card .share-row { grid-template-columns: minmax(110px, 1fr) 1.3fr auto; gap: 8px; font-size: 0.92rem; }
+.card .share-value { min-width: 4.5em; }
+.card .stacked-track { height: 18px; }
+.card .chart-tip { margin-top: 2px; }
+.share-fill { transition: width 0.5s ease; }
+.column-chart .col.clickable { cursor: pointer; }
+.column-chart .bar { transition: fill 0.2s; }
+
+@media (max-width: 1100px) {
+  .kpis { grid-template-columns: repeat(3, 1fr); }
+  .report-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .kpi-value { font-size: 1.6rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .share-fill, .report-body { transition: none; }
+}

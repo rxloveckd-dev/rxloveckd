@@ -31,11 +31,12 @@ function setup() {
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, sheet.getMaxRows(), cols.length).setNumberFormat('@');
   });
-  // The owner who runs setup becomes the first supervisor, so someone can always get in.
+  // The Sheet's owner becomes the first supervisor, so someone can always get in. (Not the person
+  // running this: with "execute as user accessing" that could be any staff member who opens it first.)
   const users = ss.getSheetByName('users');
   if (users.getLastRow() < 2) {
-    const me = Session.getEffectiveUser().getEmail();
-    users.appendRow([me, me, 'supervisor', 'TRUE']);
+    const owner = ss.getOwner();
+    if (owner) users.appendRow([owner.getEmail(), owner.getName() || owner.getEmail(), 'supervisor', 'TRUE']);
   }
   ['users', 'audit'].forEach(function (name) {
     const s = ss.getSheetByName(name);

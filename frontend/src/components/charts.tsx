@@ -1,5 +1,36 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { num } from '../format';
+
+const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/** Number that counts from its previous value to the new one (instant when motion is reduced). */
+export function CountUp({ value, suffix = '' }: { value: number; suffix?: string }) {
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    const start = from.current;
+    from.current = value;
+    if (reducedMotion() || start === value) {
+      setShown(value);
+      return;
+    }
+    let frame = 0;
+    const t0 = performance.now();
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - t0) / 600);
+      setShown(Math.round(start + (value - start) * (1 - (1 - p) ** 3)));
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return (
+    <>
+      {num(shown)}
+      {suffix}
+    </>
+  );
+}
 
 /** Number tile: label, value, optional comparison line. */
 export function StatTile({ label, value, note, tone }: { label: string; value: ReactNode; note?: ReactNode; tone?: 'alert' }) {
@@ -79,11 +110,30 @@ export function StackedBar({ segments, unit = 'คน', onSelect }: { segments: 
   );
 }
 
-/** Single-series columns over time; value labels on the latest and the highest column only. */
-export function ColumnChart({ data, unit }: { data: { label: string; value: number }[]; unit: string }) {
+/**
+ * Single-series columns over time; value labels on the highlighted and the highest column only.
+ * `selected` (default: last) is drawn dark; `onSelect` makes each column a button.
+ */
+export function ColumnChart({
+  data,
+  unit,
+  height = 250,
+  width = 520,
+  selected,
+  onSelect,
+}: {
+  data: { label: string; value: number }[];
+  unit: string;
+  height?: number;
+  /** Drawing width; match the card width roughly so text keeps its size. */
+  width?: number;
+  selected?: number;
+  onSelect?: (index: number) => void;
+}) {
   const [hover, setHover] = useState<number | null>(null);
-  const W = 520;
-  const H = 250;
+  const W = width;
+  const H = height;
+  const current = selected ?? data.length - 1;
   const pad = { top: 22, right: 8, bottom: 28, left: 30 };
   const plotW = W - pad.left - pad.right;
   const plotH = H - pad.top - pad.bottom;
@@ -110,7 +160,7 @@ export function ColumnChart({ data, unit }: { data: { label: string; value: numb
           const r = Math.min(4, h);
           const x0 = cx - barW / 2;
           const yTop = y(d.value);
-          const showLabel = i === data.length - 1 || i === peak || hover === i;
+          const showLabel = i === current || i === peak || hover === i;
           return (
             <g
               key={d.label}
@@ -119,13 +169,22 @@ export function ColumnChart({ data, unit }: { data: { label: string; value: numb
               onMouseLeave={() => setHover(null)}
               onFocus={() => setHover(i)}
               onBlur={() => setHover(null)}
-              className="col"
+              onClick={() => onSelect?.(i)}
+              onKeyDown={(e) => {
+                if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  onSelect(i);
+                }
+              }}
+              role={onSelect ? 'button' : undefined}
+              aria-label={onSelect ? `${d.label} ${d.value} ${unit}` : undefined}
+              className={onSelect ? 'col clickable' : 'col'}
             >
               <rect x={pad.left + band * i} y={pad.top} width={band} height={plotH} fill="transparent" />
               {h > 0 && (
                 <path
                   d={`M${x0},${y(0)} V${yTop + r} Q${x0},${yTop} ${x0 + r},${yTop} H${x0 + barW - r} Q${x0 + barW},${yTop} ${x0 + barW},${yTop + r} V${y(0)} Z`}
-                  className={i === data.length - 1 ? 'bar current' : 'bar'}
+                  className={i === current ? 'bar current' : 'bar'}
                 />
               )}
               {showLabel && (
