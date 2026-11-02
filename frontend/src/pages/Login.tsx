@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { api, ApiError, STATIC_DEMO, USES_SHEETS } from '../api';
+import { api, ApiError } from '../api';
 import { Field } from '../components/ui';
 
 /** Two kidneys with a pulse line and a pill, drawn in the clinic's colors. */
@@ -139,27 +139,6 @@ export function Login() {
           <button className="btn login-submit" disabled={busy || !username || !password}>
             {busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
           </button>
-          {STATIC_DEMO && (
-            <div className="demo-hint">
-              <b>เวอร์ชันทดลอง</b>
-              <span>
-                ชื่อผู้ใช้ <code>pharm1</code> รหัสผ่าน <code>demo1234</code>
-              </span>
-              <button
-                type="button"
-                className="btn secondary small"
-                onClick={() => {
-                  setUsername('pharm1');
-                  setPassword('demo1234');
-                }}
-              >
-                ใส่บัญชีทดลองให้
-              </button>
-              <small>
-                ข้อมูลทั้งหมดเป็นข้อมูลสมมติ{USES_SHEETS ? ' และบันทึกลง Google Sheets ทดลอง' : ' และเก็บอยู่ในเบราว์เซอร์นี้เท่านั้น'}
-              </small>
-            </div>
-          )}
         </form>
       </section>
     </main>

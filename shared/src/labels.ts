@@ -63,9 +63,9 @@ export const LABELS = {
   ckdStage: {
     '1': { range: 'eGFR ≥90', meaning: 'ไตเริ่มมีความผิดปกติ (โปรตีนรั่ว)' },
     '2': { range: 'eGFR 60–89', meaning: 'ไตเสื่อมเล็กน้อย' },
-    '3a': { range: 'eGFR 45–59', meaning: 'ไตเสื่อมปานกลาง ต้องเริ่มระวังอาหารและยา' },
-    '3b': { range: 'eGFR 30–44', meaning: 'ไตเสื่อมปานกลาง ต้องเริ่มระวังอาหารและยา' },
-    '4': { range: 'eGFR 15–29', meaning: 'ไตเสื่อมรุนแรง เตรียมความพร้อมรักษากับแพทย์เฉพาะทาง' },
+    '3a': { range: 'eGFR 45–59', meaning: 'ไตเสื่อมปานกลาง' },
+    '3b': { range: 'eGFR 30–44', meaning: 'ไตเสื่อมปานกลาง' },
+    '4': { range: 'eGFR 15–29', meaning: 'ไตเสื่อมรุนแรง' },
     '5': { range: 'eGFR <15', meaning: 'ไตวายเรื้อรังระยะสุดท้าย' },
   },
   appointment: { none: 'ไม่มีนัด', scheduled: 'มีนัด', upcoming: 'ใกล้ถึงนัด', missed: 'เลยนัด' },
