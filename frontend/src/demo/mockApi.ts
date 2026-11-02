@@ -4,7 +4,9 @@
  * in this browser's localStorage only.
  */
 import {
+  aceiArbCoverage,
   DEFAULT_RULES,
+  lastMonths,
   derivePatientStatus,
   URGENCY_ORDER,
   drpCreateSchema,
@@ -466,6 +468,11 @@ const routes: [string, RegExp, Handler][] = [
       upcoming: patients.filter((p) => p.appointment === 'upcoming').sort((a, b) => (a.nextAppointment ?? '').localeCompare(b.nextAppointment ?? '')),
       insufficientData: patients.filter((p) => p.gfrFlags.includes('missing') || p.gfrFlags.includes('stale')),
       month: monthly(new Date().toISOString().slice(0, 7)),
+      trend: lastMonths(6, new Date()).map(monthly),
+      aceiArb: aceiArbCoverage(
+        store.visits.map((v) => ({ ...v, visitDate: new Date(v.visitDate) })),
+        patients.map((p) => p.id),
+      ),
       rules: { version: rules.version, approved: rules.approved },
     };
   }],

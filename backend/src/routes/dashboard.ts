@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
-import { LABELS, type CkdStage, type UrgencyColor } from '@rx/shared';
+import { aceiArbCoverage, lastMonths, LABELS, type CkdStage, type UrgencyColor } from '@rx/shared';
 import { prisma } from '../db';
 import { audit } from '../audit';
 import { CLINICAL, requireRole } from '../auth';
@@ -29,7 +29,14 @@ export function dashboardRouter(): Router {
       byStage[p.stage ?? 'unknown'] += 1;
     }
     const pendingDecisions = await prisma.drp.count({ where: { prescriberDecision: 'pending' } });
+    const visits = await prisma.visit.findMany({
+      where: { patientId: { in: patients.map((p) => p.id) } },
+      select: { patientId: true, visitDate: true, visitNo: true, aceiArb: true },
+    });
+    const months = lastMonths(6, new Date());
     res.json({
+      trend: await Promise.all(months.map((m) => monthlySummary(m))),
+      aceiArb: aceiArbCoverage(visits, patients.map((p) => p.id)),
       counts: { total: patients.length, byColor, byStage, pendingDecisions },
       red: patients.filter((p) => p.color === 'red').slice(0, 20),
       missed: patients.filter((p) => p.appointment === 'missed'),
