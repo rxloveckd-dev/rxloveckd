@@ -1,23 +1,11 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { LABELS } from '@rx/shared';
-import { api } from '../api';
+import { LABELS, type MonthlySummary } from '@rx/shared';
+import { api, downloadMonthlyReport } from '../api';
 import { ErrorState, Field, Loading, Section } from '../components/ui';
 import { num } from '../format';
 
-export interface MonthlySummary {
-  month: string;
-  visits: number;
-  patientsSeen: number;
-  newEnrollments: number;
-  incorrectTaking: number;
-  herbalOrPainkiller: number;
-  dietUncontrolled: number;
-  seasoningReduceNeeded: number;
-  drps: number;
-  drpsAccepted: number;
-  drpsByCategory: Record<string, number>;
-}
+export type { MonthlySummary };
 
 export function MonthlyFigures({ s, compact = false }: { s: MonthlySummary; compact?: boolean }) {
   const rows: [string, number][] = [
@@ -58,9 +46,9 @@ export function Reports() {
           <Field label="เดือน" htmlFor="m">
             <input id="m" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
           </Field>
-          <a className="btn" style={{ alignSelf: 'end' }} href={`/api/reports/monthly.xlsx?month=${month}`} download>
+          <button className="btn" style={{ alignSelf: 'end' }} onClick={() => downloadMonthlyReport(month)}>
             ดาวน์โหลด Excel
-          </a>
+          </button>
         </div>
       </div>
       {isLoading ? (

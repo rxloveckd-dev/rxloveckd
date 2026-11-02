@@ -1,11 +1,7 @@
 import type { LabResult, Patient, Prisma, Visit } from '@prisma/client';
 import {
-  appointmentStatus,
-  ckdStage,
-  gfrChangePercent,
-  labFlags,
+  derivePatientStatus,
   maskNationalId,
-  urgency,
   type ClinicalRules,
   type PatientDerived,
   type PatientSummary,
@@ -17,7 +13,7 @@ export type PatientWithStatusData = Patient & {
   visits: Pick<Visit, 'visitDate' | 'nextAppointment' | 'medicationTaking' | 'herbalOrPainkiller'>[];
 };
 
-/** Labs needed for status, newest first; visits newest first. */
+/** Labs needed for status, newest first; only the latest visit. */
 export const STATUS_INCLUDE = {
   labs: {
     where: { test: { in: ['gfr', 'potassium', 'sbp'] } },
@@ -31,58 +27,8 @@ export const STATUS_INCLUDE = {
   },
 } satisfies Prisma.PatientInclude;
 
-export function ageOn(birthDate: Date, today: Date): number {
-  let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
-  const beforeBirthday =
-    today.getUTCMonth() < birthDate.getUTCMonth() ||
-    (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() < birthDate.getUTCDate());
-  if (beforeBirthday) age -= 1;
-  return age;
-}
-
 export function derive(p: PatientWithStatusData, rules: ClinicalRules, today: Date): PatientDerived {
-  const gfrs = p.labs.filter((l) => l.test === 'gfr');
-  const latest = gfrs[0] ?? null;
-  const previous = gfrs[1]?.value ?? null;
-  const gfrFlags = labFlags('gfr', latest, today, rules);
-  const usableGfr = latest && !gfrFlags.includes('implausible') ? latest.value : null;
-  const stage = ckdStage(usableGfr, rules);
-  const change = usableGfr === null ? null : gfrChangePercent(usableGfr, previous);
-  const lastVisit = p.visits[0] ?? null;
-  const next = lastVisit?.nextAppointment ?? null;
-  const appointment = appointmentStatus(next, today, rules);
-  const latestOf = (test: string) => p.labs.find((l) => l.test === test)?.value ?? null;
-
-  const result = urgency(
-    {
-      stage,
-      gfrChangePct: change,
-      gfrFlags,
-      latestPotassium: latestOf('potassium'),
-      latestSbp: latestOf('sbp'),
-      appointment,
-      latestVisit: lastVisit
-        ? {
-            medicationTaking: lastVisit.medicationTaking as 'correct' | 'incorrect',
-            herbalOrPainkiller: lastVisit.herbalOrPainkiller,
-          }
-        : null,
-    },
-    rules,
-  );
-
-  return {
-    age: ageOn(p.birthDate, today),
-    latestGfr: latest ? { value: latest.value, collectedAt: latest.collectedAt.toISOString() } : null,
-    previousGfr: previous,
-    gfrChangePct: change,
-    gfrFlags,
-    stage,
-    color: result.color,
-    reasons: result.reasons,
-    nextAppointment: next ? next.toISOString() : null,
-    appointment,
-  };
+  return derivePatientStatus({ birthDate: p.birthDate, labs: p.labs, latestVisit: p.visits[0] ?? null }, rules, today);
 }
 
 export function toSummary(p: PatientWithStatusData, rules: ClinicalRules, today: Date): PatientSummary {

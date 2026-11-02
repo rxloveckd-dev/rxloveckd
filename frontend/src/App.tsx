@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LABELS } from '@rx/shared';
-import { api, ApiError, useMe } from './api';
+import { api, ApiError, STATIC_DEMO, useMe } from './api';
 import { Field, Loading } from './components/ui';
 import { Dashboard } from './pages/Dashboard';
 import { Patients } from './pages/Patients';
@@ -59,6 +59,12 @@ function Login() {
         </Field>
         {error && <div className="alert" role="alert">{error}</div>}
         <button className="btn" disabled={busy}>{busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}</button>
+        {STATIC_DEMO && (
+          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+            เวอร์ชันทดลองออนไลน์: เข้าด้วย <b>pharm1</b> รหัสผ่าน <b>demo1234</b> ข้อมูลทั้งหมดเป็นข้อมูลสมมติ
+            และเก็บอยู่ในเบราว์เซอร์นี้เท่านั้น
+          </p>
+        )}
       </form>
     </main>
   );
@@ -73,6 +79,13 @@ export function App() {
 
   const { user, demoMode } = me.data;
   const clinical = user.role !== 'admin';
+
+  async function resetDemoData() {
+    const { resetDemo } = await import('./demo/mockApi');
+    resetDemo();
+    await api('/auth/login', { method: 'POST', json: { username: user.username, password: 'demo1234' } }).catch(() => null);
+    await qc.invalidateQueries();
+  }
 
   async function logout() {
     await api('/auth/logout', { method: 'POST' });
@@ -109,7 +122,17 @@ export function App() {
         </div>
       </nav>
       <div>
-        {demoMode && <div className="demo-bar">โหมดทดลอง: ข้อมูลผู้ป่วยทั้งหมดเป็นข้อมูลสมมติ ห้ามบันทึกข้อมูลผู้ป่วยจริง</div>}
+        {demoMode && (
+          <div className="demo-bar">
+            โหมดทดลอง: ข้อมูลผู้ป่วยทั้งหมดเป็นข้อมูลสมมติ ห้ามบันทึกข้อมูลผู้ป่วยจริง
+            {STATIC_DEMO && (
+              <>
+                {' '}ข้อมูลที่บันทึกเก็บในเบราว์เซอร์นี้เท่านั้น{' '}
+                <button className="btn secondary small" onClick={resetDemoData}>ล้างกลับเป็นข้อมูลเริ่มต้น</button>
+              </>
+            )}
+          </div>
+        )}
         <main className="main">
           {clinical ? (
             <Routes>

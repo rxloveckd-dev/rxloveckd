@@ -4,6 +4,8 @@ export * from './domain/egfr';
 export * from './domain/gfr';
 export * from './domain/dataQuality';
 export * from './domain/urgency';
+export * from './domain/patientStatus';
+export * from './domain/monthly';
 export * from './schemas';
 export * from './labels';
 export * from './types';

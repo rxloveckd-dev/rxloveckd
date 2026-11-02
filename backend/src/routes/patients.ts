@@ -3,15 +3,13 @@ import { z } from 'zod';
 import {
   drpCreateSchema,
   drpDecisionSchema,
-  gfrChangePercent,
   labCreateSchema,
-  labFlags,
+  labHistory,
   medicationCreateSchema,
   patientCreateSchema,
   patientUpdateSchema,
   visitCreateSchema,
   type ClinicalRules,
-  type LabTest,
 } from '@rx/shared';
 import { prisma } from '../db';
 import { audit } from '../audit';
@@ -43,26 +41,6 @@ function profileResponse(p: Awaited<ReturnType<typeof findPatientOr404>>, rules:
     ckdCause: p.ckdCause,
     notes: p.notes,
   };
-}
-
-/** Lab history with previous value, change and flags per test (spec FR-004–FR-007). */
-function labHistory(labs: { id: string; test: string; value: number; unit: string; collectedAt: Date; origin: string; source: string; visitId: string | null }[], rules: ClinicalRules) {
-  const today = new Date();
-  const sorted = [...labs].sort((a, b) => a.collectedAt.getTime() - b.collectedAt.getTime());
-  const prevByTestUnit = new Map<string, number>();
-  const rows = sorted.map((l) => {
-    const key = `${l.test}|${l.unit}`;
-    const previous = prevByTestUnit.get(key) ?? null;
-    prevByTestUnit.set(key, l.value);
-    const flags = labFlags(l.test as LabTest, l, today, rules).filter((f) => f === 'implausible');
-    return {
-      ...l,
-      previous,
-      changePct: l.test === 'gfr' ? gfrChangePercent(l.value, previous) : null,
-      flags,
-    };
-  });
-  return rows.reverse();
 }
 
 export function patientsRouter(): Router {
@@ -112,7 +90,7 @@ export function patientsRouter(): Router {
   r.get('/patients/:id/labs', async (req, res) => {
     await findPatientOr404(req.params.id);
     const labs = await prisma.labResult.findMany({ where: { patientId: req.params.id } });
-    res.json({ items: labHistory(labs, await activeRules()) });
+    res.json({ items: labHistory(labs, await activeRules(), new Date()) });
   });
 
   r.post('/patients/:id/labs', async (req, res) => {

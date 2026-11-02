@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:pages": "vite build --mode pages --outDir dist-pages && node -e \"require('fs').copyFileSync('dist-pages/index.html','dist-pages/404.html')\"",
     "preview": "vite preview",
     "typecheck": "tsc -p ."
   },

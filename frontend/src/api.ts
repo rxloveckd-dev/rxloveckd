@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { PatientSummary, SessionUser } from '@rx/shared';
+import { LABELS, type MonthlySummary, type PatientSummary, type SessionUser } from '@rx/shared';
+
+/** GitHub Pages build: no server, the API is answered in the browser with synthetic data. */
+export const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
 
 export class ApiError extends Error {
   constructor(
@@ -13,6 +16,15 @@ export class ApiError extends Error {
 
 export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const { json, ...rest } = init;
+  if (STATIC_DEMO) {
+    const { mockApi, MockHttpError } = await import('./demo/mockApi');
+    try {
+      return (await mockApi(path, rest.method ?? 'GET', json)) as T;
+    } catch (err) {
+      if (err instanceof MockHttpError) throw new ApiError(err.status, err.message, err.field);
+      throw err;
+    }
+  }
   const res = await fetch(`/api${path}`, {
     credentials: 'same-origin',
     ...rest,
@@ -24,6 +36,35 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
     throw new ApiError(res.status, body?.error?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่', body?.error?.field);
   }
   return res.json() as Promise<T>;
+}
+
+/** Server build: Excel from the API (audited). Static demo: the same figures as a CSV that Excel opens. */
+export async function downloadMonthlyReport(month: string) {
+  if (!STATIC_DEMO) {
+    window.location.href = `/api/reports/monthly.xlsx?month=${month}`;
+    return;
+  }
+  const s = await api<MonthlySummary>(`/reports/monthly?month=${month}`);
+  const rows: [string, string | number][] = [
+    ['เดือน', s.month],
+    ['จำนวนครั้งที่ผู้ป่วยมาติดตาม', s.visits],
+    ['จำนวนผู้ป่วยที่มาติดตาม (คน)', s.patientsSeen],
+    ['ผู้ป่วยลงทะเบียนใหม่', s.newEnrollments],
+    ['กินยาไม่ถูกต้อง (ครั้ง)', s.incorrectTaking],
+    ['กินยาสมุนไพร/ยาแก้ปวด (ครั้ง)', s.herbalOrPainkiller],
+    ['ไม่คุมอาหาร (ครั้ง)', s.dietUncontrolled],
+    ['เครื่องปรุงควรปรับลด (ครั้ง)', s.seasoningReduceNeeded],
+    ['DRP ที่พบ', s.drps],
+    ['DRP ที่แพทย์ยอมรับ (รวมยอมรับแบบปรับ)', s.drpsAccepted],
+    ...Object.entries(s.drpsByCategory).map(
+      ([k, v]) => [`DRP: ${LABELS.drpCategory[k as keyof typeof LABELS.drpCategory] ?? k}`, v] as [string, number],
+    ),
+  ];
+  const csv = '﻿รายการ,จำนวน\n' + rows.map(([k, v]) => `"${k}",${v}`).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: `loveckd-summary-${month}.csv` });
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export const useMe = () =>
