@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LABELS } from '@rx/shared';
-import { api, ApiError, STATIC_DEMO, USES_SHEETS, useMe } from './api';
-import { Field, Loading } from './components/ui';
+import { api, STATIC_DEMO, USES_SHEETS, useMe } from './api';
+import { Loading } from './components/ui';
+import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Patients } from './pages/Patients';
 import { PatientNew } from './pages/PatientNew';
@@ -17,56 +18,6 @@ function KidneyMark() {
       <path d="M17 6c-7 0-12 6-12 14s5 14 12 14c4 0 6-3 6-6 0-2-2-3-2-5s2-3 2-5V12c0-4-2-6-6-6z" fill="#c8505a" />
       <path d="M24 9c5 1 10 5 10 11s-5 10-10 11" fill="none" stroke="#ffe27a" strokeWidth="3" strokeLinecap="round" />
     </svg>
-  );
-}
-
-function Login() {
-  const qc = useQueryClient();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      await api('/auth/login', { method: 'POST', json: { username, password } });
-      await qc.invalidateQueries({ queryKey: ['me'] });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'เข้าสู่ระบบไม่สำเร็จ');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <main className="login">
-      <form onSubmit={submit}>
-        <div className="brand" style={{ padding: 0 }}>
-          <KidneyMark />
-          <div>
-            <h1 style={{ fontSize: '1.4rem' }}>Love CKD</h1>
-            <span className="muted">คลินิกรักษ์ไต รพ.เขาชัยสน</span>
-          </div>
-        </div>
-        <Field label="ชื่อผู้ใช้" htmlFor="u">
-          <input id="u" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-        </Field>
-        <Field label="รหัสผ่าน" htmlFor="p">
-          <input id="p" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </Field>
-        {error && <div className="alert" role="alert">{error}</div>}
-        <button className="btn" disabled={busy}>{busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}</button>
-        {STATIC_DEMO && (
-          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
-            เวอร์ชันทดลองออนไลน์: เข้าด้วย <b>pharm1</b> รหัสผ่าน <b>demo1234</b> ข้อมูลทั้งหมดเป็นข้อมูลสมมติ
-            {USES_SHEETS ? ' และบันทึกลง Google Sheets ทดลอง' : ' และเก็บอยู่ในเบราว์เซอร์นี้เท่านั้น'}
-          </p>
-        )}
-      </form>
-    </main>
   );
 }
 
@@ -95,8 +46,10 @@ export function App() {
 
   async function logout() {
     await api('/auth/logout', { method: 'POST' });
-    qc.clear();
-    await qc.invalidateQueries({ queryKey: ['me'] });
+    // Drop patient data from memory, then mark the user as signed out so <App> shows the login page.
+    // (qc.clear() alone leaves mounted queries showing their last result.)
+    qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
+    qc.setQueryData(['me'], null);
   }
 
   return (
