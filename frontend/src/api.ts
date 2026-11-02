@@ -5,6 +5,10 @@ import { LABELS, type DischargeCode, type MonthlySummary, type PatientSummary, t
 export const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
 /** Static demo that saves into the trial Google Sheet instead of browser storage. */
 export const USES_SHEETS = STATIC_DEMO && !!import.meta.env.VITE_SHEETS_API_URL;
+/** Private clinic web app served by Google Apps Script; Google account sign-in, no passwords. */
+export const GAS_MODE = import.meta.env.VITE_GAS === 'true';
+/** API answered in the browser (static demo or Apps Script) rather than by the Express server. */
+const BROWSER_API = STATIC_DEMO || GAS_MODE;
 
 export class ApiError extends Error {
   constructor(
@@ -18,7 +22,7 @@ export class ApiError extends Error {
 
 export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const { json, ...rest } = init;
-  if (STATIC_DEMO) {
+  if (BROWSER_API) {
     const { mockApi, MockHttpError } = await import('./demo/mockApi');
     try {
       return (await mockApi(path, rest.method ?? 'GET', json)) as T;
@@ -42,7 +46,7 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
 
 /** Server build: Excel from the API (audited). Static demo: the same figures as a CSV that Excel opens. */
 export async function downloadMonthlyReport(month: string) {
-  if (!STATIC_DEMO) {
+  if (!BROWSER_API) {
     window.location.href = `/api/reports/monthly.xlsx?month=${month}`;
     return;
   }

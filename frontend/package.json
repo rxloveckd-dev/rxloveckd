@@ -8,7 +8,8 @@
     "build": "vite build",
     "build:pages": "vite build --mode pages --outDir dist-pages && node -e \"require('fs').copyFileSync('dist-pages/index.html','dist-pages/404.html')\"",
     "preview": "vite preview",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "build:gas": "vite build --mode gas --outDir dist-gas && node -e \"require('fs').copyFileSync('dist-gas/index.html','../apps-script/Index.html')\""
   },
   "dependencies": {
     "@rx/shared": "*",
@@ -21,6 +22,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vite-plugin-singlefile": "^2.0.3"
   }
 }

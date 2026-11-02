@@ -51,6 +51,29 @@ const SESSION_KEY = 'loveckd-static-demo-session';
 /** Apps Script web app (apps-script/Code.gs). When set, data lives in the Google Sheet, not the browser. */
 const SHEETS_URL: string = import.meta.env.VITE_SHEETS_API_URL ?? '';
 export const USES_SHEETS = SHEETS_URL !== '';
+/** Private clinic web app: data and identity come from Google Apps Script via google.script.run. */
+export const GAS = import.meta.env.VITE_GAS === 'true';
+const REMOTE = USES_SHEETS || GAS;
+
+type GasRunner = Record<string, (...args: unknown[]) => void> & {
+  withSuccessHandler: (f: (v: unknown) => void) => GasRunner;
+  withFailureHandler: (f: (e: Error) => void) => GasRunner;
+};
+
+/** Promise wrapper for google.script.run; server errors carry Thai messages from Code.gs. */
+function gasCall<T>(fn: string, ...args: unknown[]): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const run = (window as unknown as { google?: { script?: { run?: GasRunner } } }).google?.script?.run;
+    if (!run) {
+      reject(new MockHttpError(502, 'เปิดหน้านี้จากลิงก์ของคลินิกเท่านั้น'));
+      return;
+    }
+    run
+      .withSuccessHandler((v) => resolve(v as T))
+      .withFailureHandler((e) => reject(new MockHttpError(403, e?.message ?? 'เชื่อมต่อระบบไม่สำเร็จ')))
+      [fn]!(...args);
+  });
+}
 const DAY = 86_400_000;
 const rules = DEFAULT_RULES;
 let seq = 0;
@@ -158,6 +181,7 @@ function readSession(): string | null {
 function load(): Store {
   const s = seed();
   s.session = readSession();
+  if (GAS) return { users: [], session: null, patients: [], visits: [], labs: [], medications: [], drps: [] };
   if (USES_SHEETS) return { ...s, patients: [], visits: [], labs: [], medications: [], drps: [] };
   try {
     const raw = localStorage.getItem(KEY);
@@ -168,13 +192,13 @@ function load(): Store {
   return s;
 }
 let store = load();
-let loaded = !USES_SHEETS;
+let loaded = !REMOTE;
 
 function save() {
   try {
     if (store.session) localStorage.setItem(SESSION_KEY, store.session);
     else localStorage.removeItem(SESSION_KEY);
-    if (!USES_SHEETS) localStorage.setItem(KEY, JSON.stringify(store));
+    if (!REMOTE) localStorage.setItem(KEY, JSON.stringify(store));
   } catch {
     /* demo still works for this tab without persistence */
   }
@@ -193,7 +217,11 @@ function fromSheet(table: Table, row: Record<string, string>) {
   return out;
 }
 
-async function sheetsPost(payload: unknown) {
+async function sheetsPost(payload: { ops?: Op[]; reset?: boolean }) {
+  if (GAS) {
+    await gasCall('writeOps', payload.ops ?? []);
+    return;
+  }
   // text/plain keeps this a "simple" request, so the browser sends no CORS preflight to Apps Script.
   const res = await fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify(payload) });
   const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
@@ -204,6 +232,13 @@ async function sheetsPost(payload: unknown) {
 
 async function ensureLoaded() {
   if (loaded) return;
+  if (GAS) {
+    const data = await gasCall<Record<Table, Record<string, string>[]> & { users: SessionUser[] }>('loadAll');
+    for (const t of TABLES) (store[t] as unknown[]) = data[t].map((r) => fromSheet(t, r));
+    store.users = data.users.map((u) => ({ ...u, password: '' }));
+    loaded = true;
+    return;
+  }
   const res = await fetch(SHEETS_URL).catch(() => null);
   const body = (await res?.json().catch(() => null)) as { ok?: boolean; data?: Record<Table, Record<string, string>[]> } | null;
   if (!body?.ok || !body.data) throw new MockHttpError(502, 'เชื่อมต่อ Google Sheets ไม่สำเร็จ กรุณาลองใหม่');
@@ -229,6 +264,7 @@ function update<T extends Table>(table: T, row: Store[T][number]) {
 }
 
 export async function resetDemo() {
+  if (GAS) throw new MockHttpError(403, 'ระบบใช้งานจริงไม่มีการล้างข้อมูล');
   if (USES_SHEETS) {
     await sheetsPost({ reset: true });
     loaded = false;
@@ -516,11 +552,18 @@ export async function mockApi(path: string, method: string, body: unknown): Prom
   const [pathname = '', qs = ''] = path.split('?');
   const route = routes.find(([m, re]) => m === method && re.test(pathname));
   if (!route) throw new MockHttpError(404, 'ไม่พบข้อมูล');
+  if (GAS && pathname.startsWith('/auth/')) {
+    if (pathname !== '/auth/me') return { ok: true }; // signing in and out is done by the Google account
+    const user = await gasCall<SessionUser>('whoami');
+    store.session = user.id;
+    if (!store.users.some((u) => u.id === user.id)) store.users.push({ ...user, password: '' });
+    return { user, demoMode: false, gas: true };
+  }
   if (!pathname.startsWith('/auth/')) await ensureLoaded();
   pending = [];
   try {
     const result = route[2](pathname.match(route[1])!, body, new URLSearchParams(qs));
-    if (USES_SHEETS && pending.length) {
+    if (REMOTE && pending.length) {
       try {
         await sheetsPost({ ops: pending });
       } catch (err) {

@@ -14,3 +14,5 @@ playwright-report/
 .playwright-mcp/
 dist-pages/
 apps-script/.clasp.json
+apps-script/Index.html
+frontend/dist-gas/

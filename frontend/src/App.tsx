@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LABELS } from '@rx/shared';
-import { api, STATIC_DEMO, USES_SHEETS, useMe } from './api';
+import { api, ApiError, GAS_MODE, STATIC_DEMO, USES_SHEETS, useMe } from './api';
 import { Loading } from './components/ui';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -21,12 +21,31 @@ function KidneyMark() {
   );
 }
 
+/** Apps Script mode: the Google account is signed in but not allowed, or the Sheet is not shared. */
+function NoAccess({ error }: { error: unknown }) {
+  return (
+    <main className="login-panel" style={{ minHeight: '100vh' }}>
+      <div className="login-form">
+        <h2>ยังเข้าใช้งานไม่ได้</h2>
+        <div className="alert" role="alert">
+          {error instanceof ApiError ? error.message : 'เชื่อมต่อระบบไม่สำเร็จ'}
+        </div>
+        <p className="muted" style={{ margin: 0 }}>
+          ระบบนี้ใช้ได้เฉพาะบัญชี Google ของเจ้าหน้าที่คลินิกรักษ์ไตที่ได้รับสิทธิ์แล้ว
+          ถ้าเพิ่งได้รับสิทธิ์ ให้ปิดแล้วเปิดหน้านี้ใหม่
+        </p>
+      </div>
+    </main>
+  );
+}
+
 export function App() {
   const me = useMe();
   const qc = useQueryClient();
   const [resetting, setResetting] = useState(false);
 
   if (me.isLoading) return <Loading />;
+  if (GAS_MODE && (me.isError || !me.data)) return <NoAccess error={me.error} />;
   if (me.isError || !me.data) return <Login />;
 
   const { user, demoMode } = me.data;
@@ -77,7 +96,11 @@ export function App() {
             {LABELS.role[user.role]}
             <br />
           </span>
-          <button className="btn secondary small" onClick={logout}>ออกจากระบบ</button>
+          {GAS_MODE ? (
+            <small style={{ wordBreak: 'break-all' }}>{user.username}</small>
+          ) : (
+            <button className="btn secondary small" onClick={logout}>ออกจากระบบ</button>
+          )}
         </div>
       </nav>
       <div>
