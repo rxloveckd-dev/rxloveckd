@@ -159,13 +159,14 @@ function requireAllowedEmail() {
   const email = (Session.getActiveUser().getEmail() || '').toLowerCase();
   if (!email) throw new Error('ไม่สามารถระบุบัญชี Google ได้ กรุณาเข้าสู่ระบบ Google แล้วลองใหม่');
   const user = readTable('users').find(function (u) {
-    return u.email.toLowerCase() === email && String(u.active).toUpperCase() !== 'FALSE';
+    // Trim: a stray space typed in the users tab must not lock a person out.
+    return String(u.email).trim().toLowerCase() === email && String(u.active).trim().toUpperCase() !== 'FALSE';
   });
   if (!user) {
     audit(email, 'denied', 'app', '', 'denied');
     throw new Error('บัญชี ' + email + ' ยังไม่มีสิทธิ์ใช้งาน กรุณาติดต่อหัวหน้าเภสัชกร');
   }
-  return { id: email, username: email, displayName: user.displayName || email, role: user.role };
+  return { id: email, username: email, displayName: String(user.displayName || email).trim(), role: String(user.role).trim() };
 }
 
 /** Allowed Google account AND a valid app sign-in; clinicalOnly also requires a clinical role. */
@@ -199,7 +200,8 @@ function loadAll() {
   const out = {};
   DATA_TABLES.forEach(function (name) { out[name] = readTable(name); });
   out.users = readTable('users').map(function (u) {
-    return { id: u.email, username: u.email, displayName: u.displayName || u.email, role: u.role };
+    const mail = String(u.email).trim().toLowerCase();
+    return { id: mail, username: mail, displayName: String(u.displayName || mail).trim(), role: String(u.role).trim() };
   });
   audit(user.id, 'view', 'all', '', 'ok');
   return out;
