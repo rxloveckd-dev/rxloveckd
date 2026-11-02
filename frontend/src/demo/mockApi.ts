@@ -27,7 +27,7 @@ import {
 import { z, ZodError } from 'zod';
 
 interface Store {
-  users: (SessionUser & { password: string })[];
+  users: (SessionUser & { password: string; active?: boolean })[];
   session: string | null;
   patients: { id: string; nationalId: string; hn: string; title: string; firstName: string; lastName: string; birthDate: string; sex: 'male' | 'female'; ckdCause: string | null; programStatus: string; enrolledAt: string; notes: string | null; dischargeCode?: string | null; dischargeDate?: string | null; dischargeNote?: string | null }[];
   labs: { id: string; patientId: string; visitId: string | null; test: string; value: number; unit: string; collectedAt: string; origin: string; source: string }[];
@@ -363,7 +363,7 @@ type Handler = (m: RegExpMatchArray, body: unknown, query: URLSearchParams) => u
 const routes: [string, RegExp, Handler][] = [
   ['POST', /^\/auth\/login$/, (_m, body) => {
     const { username, password } = loginSchema.parse(body);
-    const u = store.users.find((x) => x.username === username && x.password === password);
+    const u = store.users.find((x) => x.username === username && x.password === password && x.active !== false);
     if (!u) throw new MockHttpError(401, 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
     store.session = u.id;
     return { user: me() };
@@ -371,6 +371,29 @@ const routes: [string, RegExp, Handler][] = [
   ['POST', /^\/auth\/logout$/, () => {
     store.session = null;
     return { ok: true };
+  }],
+  ['GET', /^\/admin\/users$/, () => {
+    if (me().role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะหัวหน้าเภสัชกรที่จัดการผู้ใช้ได้');
+    return { users: store.users.map((u) => ({ email: u.username, displayName: u.displayName, role: u.role, active: u.active !== false })) };
+  }],
+  ['POST', /^\/admin\/users$/, (_m, body) => {
+    const current = me();
+    if (current.role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะหัวหน้าเภสัชกรที่จัดการผู้ใช้ได้');
+    const b = (body ?? {}) as { email?: string; displayName?: string; role?: string; active?: boolean };
+    const email = String(b.email ?? '').trim().toLowerCase();
+    if (!email) throw new MockHttpError(400, 'กรุณาระบุอีเมลหรือชื่อผู้ใช้');
+    if (!['pharmacist', 'supervisor', 'admin'].includes(String(b.role))) throw new MockHttpError(400, 'สิทธิ์ไม่ถูกต้อง');
+    if (email === current.username && (b.active === false || b.role !== 'supervisor')) {
+      throw new MockHttpError(400, 'ไม่สามารถลดสิทธิ์หรือระงับบัญชีของตัวเองได้');
+    }
+    const existing = store.users.find((u) => u.username === email);
+    const fields = { displayName: String(b.displayName ?? '').trim() || email, role: b.role as SessionUser['role'], active: b.active !== false };
+    if (existing) Object.assign(existing, fields);
+    else store.users.push({ id: newId(), username: email, password: 'demo1234', ...fields });
+    return { users: store.users.map((u) => ({ email: u.username, displayName: u.displayName, role: u.role, active: u.active !== false })), note: '' };
+  }],
+  ['POST', /^\/auth\/change$/, () => {
+    throw new MockHttpError(400, 'เวอร์ชันสาธิตเปลี่ยนรหัสผ่านไม่ได้');
   }],
   ['GET', /^\/auth\/me$/, () => ({ user: me(), demoMode: true, staticDemo: true })],
 
@@ -550,6 +573,16 @@ const routes: [string, RegExp, Handler][] = [
 
 export async function mockApi(path: string, method: string, body: unknown): Promise<unknown> {
   const [pathname = '', qs = ''] = path.split('?');
+  if (GAS && (pathname === '/admin/users' || pathname === '/auth/change')) {
+    if (pathname === '/auth/change') {
+      const b = (body ?? {}) as Record<string, string>;
+      return gasCall('changeLogin', b.currentUsername ?? '', b.currentPassword ?? '', b.newUsername ?? '', b.newPassword ?? '');
+    }
+    if (method === 'GET') return { users: await gasCall('listUsers') };
+    const saved = await gasCall<{ users: unknown[]; note: string }>('saveUser', body);
+    loaded = false; // reload so new names show on records
+    return saved;
+  }
   // Apps Script sign-in calls go straight to Code.gs; /auth/setup has no local route.
   if (GAS && pathname.startsWith('/auth/')) {
     // Google account identifies the person; the clinic username/password is checked in Code.gs.

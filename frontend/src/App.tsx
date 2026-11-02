@@ -11,6 +11,7 @@ import { PatientNew } from './pages/PatientNew';
 import { PatientProfile } from './pages/PatientProfile';
 import { VisitNew } from './pages/VisitNew';
 import { Reports } from './pages/Reports';
+import { Users } from './pages/Users';
 
 function KidneyMark() {
   return (
@@ -58,6 +59,8 @@ export function App() {
 
   const { user, demoMode } = me.data;
   const clinical = user.role !== 'admin';
+  // User management exists where accounts live in the browser layer (Apps Script or demo).
+  const canManageUsers = user.role === 'supervisor' && (GAS_MODE || STATIC_DEMO);
 
   async function resetDemoData() {
     if (USES_SHEETS && !window.confirm('ล้างข้อมูลทั้งหมดใน Google Sheets ทดลอง แล้วใส่ข้อมูลสมมติชุดเริ่มต้นใหม่?')) return;
@@ -96,6 +99,7 @@ export function App() {
             <NavLink to="/patients">ผู้ป่วย</NavLink>
             <NavLink to="/patients/new">ลงทะเบียนผู้ป่วย</NavLink>
             <NavLink to="/reports">สรุปรายเดือน</NavLink>
+            {canManageUsers && <NavLink to="/users">จัดการผู้ใช้</NavLink>}
           </>
         )}
         <div className="side-foot">
@@ -134,6 +138,7 @@ export function App() {
               <Route path="/patients/:id" element={<PatientProfile />} />
               <Route path="/patients/:id/visits/new" element={<VisitNew />} />
               <Route path="/reports" element={<Reports />} />
+              {canManageUsers && <Route path="/users" element={<Users />} />}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           ) : (

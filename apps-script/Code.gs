@@ -180,6 +180,86 @@ function requireUser(clinicalOnly) {
   return user;
 }
 
+// ---------------------------------------------------------------- user management (supervisors)
+
+const ROLES = ['pharmacist', 'supervisor', 'admin'];
+
+function requireSupervisor() {
+  const user = requireUser(false);
+  if (user.role !== 'supervisor') throw new Error('เฉพาะหัวหน้าเภสัชกรที่จัดการผู้ใช้ได้');
+  return user;
+}
+
+function listUsers() {
+  requireSupervisor();
+  return readTable('users').map(function (u) {
+    return {
+      email: String(u.email).trim().toLowerCase(),
+      displayName: String(u.displayName || '').trim(),
+      role: String(u.role).trim(),
+      active: String(u.active).trim().toUpperCase() !== 'FALSE',
+    };
+  });
+}
+
+/**
+ * Adds or updates one user. Active users are also given edit access to this Sheet (needed because
+ * the app runs as each signed-in user); suspended users have that access removed.
+ */
+function saveUser(input) {
+  const me = requireSupervisor();
+  const email = String((input && input.email) || '').trim().toLowerCase();
+  const displayName = String((input && input.displayName) || '').trim() || email;
+  const role = String((input && input.role) || '').trim();
+  const active = !!(input && input.active);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('อีเมลไม่ถูกต้อง');
+  if (ROLES.indexOf(role) < 0) throw new Error('สิทธิ์ไม่ถูกต้อง');
+  if (email === me.id && (!active || role !== 'supervisor')) throw new Error('ไม่สามารถลดสิทธิ์หรือระงับบัญชีของตัวเองได้');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let shareNote = '';
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const sheet = ss.getSheetByName('users');
+    const emails = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues() : [];
+    const idx = emails.findIndex(function (r) { return String(r[0]).trim().toLowerCase() === email; });
+    const row = [email, displayName, role, active ? 'TRUE' : 'FALSE'];
+    if (idx >= 0) sheet.getRange(idx + 2, 1, 1, 4).setValues([row]);
+    else sheet.appendRow(row);
+
+    try {
+      if (active) ss.addEditor(email);
+      else if (ss.getEditors().some(function (u) { return u.getEmail().toLowerCase() === email; })) ss.removeEditor(email);
+    } catch (e) {
+      shareNote = active
+        ? 'บันทึกผู้ใช้แล้ว แต่แชร์ Sheet ให้อัตโนมัติไม่สำเร็จ กรุณากดแชร์ Sheet ให้ ' + email + ' เป็นผู้แก้ไขเอง'
+        : 'ระงับผู้ใช้แล้ว แต่ยกเลิกการแชร์ Sheet อัตโนมัติไม่สำเร็จ กรุณานำ ' + email + ' ออกจากการแชร์เอง';
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  audit(me.id, active ? 'update' : 'deactivate', 'user', email, 'ok');
+  return { users: listUsers(), note: shareNote };
+}
+
+/** Change the clinic username/password; the current username and password are required. */
+function changeLogin(currentUsername, currentPassword, newUsername, newPassword) {
+  const me = requireSupervisor();
+  const props = PropertiesService.getScriptProperties();
+  const currentHash = hash(String(currentUsername || '').trim().toLowerCase() + '\n' + (currentPassword || ''), props.getProperty('LOGIN_SALT') || '');
+  if (currentHash !== props.getProperty('LOGIN_HASH')) {
+    audit(me.id, 'update', 'login_settings', '', 'denied');
+    throw new Error('ชื่อผู้ใช้หรือรหัสผ่านปัจจุบันไม่ถูกต้อง');
+  }
+  const user = String(newUsername || '').trim().toLowerCase();
+  if (!user || String(newPassword || '').length < 4) throw new Error('กรุณาระบุชื่อผู้ใช้ และรหัสผ่านอย่างน้อย 4 ตัว');
+  const salt = Utilities.getUuid();
+  props.setProperties({ LOGIN_SALT: salt, LOGIN_HASH: hash(user + '\n' + newPassword, salt) });
+  audit(me.id, 'update', 'login_settings', '', 'ok');
+  return { ok: true };
+}
+
 // ---------------------------------------------------------------- one-off maintenance
 
 /**
