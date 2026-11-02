@@ -11,3 +11,4 @@ backend/prisma/*.db-journal
 .claude/ralph-loop.local.md
 test-results/
 playwright-report/
+.playwright-mcp/
