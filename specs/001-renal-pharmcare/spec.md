@@ -49,6 +49,9 @@ of คลินิกรักษ์ไต (Kidney Care Clinic), Khao Chaison Ho
   system of record? → A: No. The application keeps its own database (earlier answer); the Excel
   workbook in `data/LoveCKD_Database.xlsx` is an interim paper replacement until the application is
   in use, and reports export to Excel.
+- Clinic feedback on the visit form (2026-11-02): add ACEI/ARB yes/no with "not on it because…"
+  in the patient-medicines section; replace Cr with HbA1c; add blood pressure to the lab section;
+  the app must work on phones.
 
 ## User Scenarios & Testing *(mandatory)*
 
