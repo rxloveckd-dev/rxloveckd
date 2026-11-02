@@ -180,6 +180,48 @@ function requireUser(clinicalOnly) {
   return user;
 }
 
+// ---------------------------------------------------------------- one-off maintenance
+
+/**
+ * Run once from the Apps Script editor (select clearDemoData, press Run) before real use.
+ * Removes only the synthetic trial patients (notes = DEMO_NOTE) and every visit, lab, medication
+ * and DRP that belongs to them. Real records, the users tab and the audit tab are kept.
+ */
+const DEMO_NOTE = 'ข้อมูลสมมติสำหรับทดลองระบบ';
+
+function clearDemoData() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const demoIds = {};
+    readTable('patients').forEach(function (p) {
+      if (String(p.notes).trim() === DEMO_NOTE) demoIds[p.id] = true;
+    });
+    const removed = {};
+    DATA_TABLES.forEach(function (name) {
+      const key = name === 'patients' ? 'id' : 'patientId';
+      const rows = readTable(name);
+      const keep = rows.filter(function (r) { return !demoIds[r[key]]; });
+      removed[name] = rows.length - keep.length;
+      const sheet = ss.getSheetByName(name);
+      if (sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
+      if (keep.length) {
+        sheet
+          .getRange(2, 1, keep.length, TABLES[name].length)
+          .setNumberFormat('@')
+          .setValues(keep.map(function (r) { return toCells(name, r); }));
+      }
+    });
+    const who = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    audit(who, 'delete', 'demo_data', JSON.stringify(removed), 'ok');
+    Logger.log('ลบข้อมูลสมมติแล้ว: ' + JSON.stringify(removed));
+    return removed;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // ---------------------------------------------------------------- web app
 
 function doGet() {
