@@ -1,7 +1,9 @@
 import type { DataFlag } from './dataQuality';
 import type { CkdStage, ClinicalRules } from './rules';
 
-export type UrgencyColor = 'green' | 'yellow' | 'red';
+/** Most urgent first: red > orange > yellow > green. Orange marks CKD stage 4 (clinic request). */
+export type UrgencyColor = 'green' | 'yellow' | 'orange' | 'red';
+export const URGENCY_ORDER: Record<UrgencyColor, number> = { red: 0, orange: 1, yellow: 2, green: 3 };
 export type AppointmentStatus = 'none' | 'scheduled' | 'upcoming' | 'missed';
 
 export interface UrgencyInput {
@@ -19,14 +21,16 @@ export interface UrgencyResult {
   reasons: string[];
 }
 
-/** Worst of disease risk and follow-up urgency (spec FR-003c); red reasons are listed first. */
+/** Worst of disease risk and follow-up urgency (spec FR-003c); reasons listed most urgent first. */
 export function urgency(input: UrgencyInput, rules: ClinicalRules): UrgencyResult {
   const red: string[] = [];
+  const orange: string[] = [];
   const yellow: string[] = [];
   const fall = input.gfrChangePct !== null && input.gfrChangePct < 0 ? -input.gfrChangePct : 0;
 
   if (input.appointment === 'missed') red.push('เลยวันนัด');
-  if (input.stage === '4' || input.stage === '5') red.push(`CKD ระยะ ${input.stage}`);
+  if (input.stage === '5') red.push('CKD ระยะ 5');
+  if (input.stage === '4') orange.push('CKD ระยะ 4');
   if (fall > rules.gfrFallRedPct) red.push(`GFR ลดลง ${fall.toFixed(1)}% (มากกว่า ${rules.gfrFallRedPct}%)`);
   if (input.latestPotassium !== null && input.latestPotassium > rules.potassiumRed) {
     red.push(`โพแทสเซียมสูง ${input.latestPotassium} mmol/L`);
@@ -40,8 +44,8 @@ export function urgency(input: UrgencyInput, rules: ClinicalRules): UrgencyResul
   if (input.gfrFlags.includes('missing')) yellow.push('ยังไม่มีผล GFR');
   else if (input.gfrFlags.includes('stale')) yellow.push('ผล GFR เก่าเกินกำหนด');
 
-  const color: UrgencyColor = red.length ? 'red' : yellow.length ? 'yellow' : 'green';
-  return { color, reasons: [...red, ...yellow] };
+  const color: UrgencyColor = red.length ? 'red' : orange.length ? 'orange' : yellow.length ? 'yellow' : 'green';
+  return { color, reasons: [...red, ...orange, ...yellow] };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

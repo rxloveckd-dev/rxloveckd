@@ -18,8 +18,14 @@ export function Urgency({ color }: { color: UrgencyColor }) {
   return <span className={`badge ${color}`}>{LABELS.urgency[color]}</span>;
 }
 
+/** Stage badge colored like the clinic's scheme: 1–2 green, 3a–3b yellow, 4 pink, 5 red. */
 export function Stage({ stage }: { stage: string | null }) {
-  return stage ? <span className="stage" title="ระยะโรคไต">{stage}</span> : <span className="muted">–</span>;
+  if (!stage) return <span className="muted">–</span>;
+  return (
+    <span className={`stage s${stage.charAt(0)}`} title={`ระยะโรคไต ${stage}`}>
+      {stage}
+    </span>
+  );
 }
 
 export function Field({

@@ -306,6 +306,7 @@ export function PatientProfile() {
           <div><b>{p.latestGfr ? num(p.latestGfr.value, 1) : '–'}</b></div>
           <div className={p.gfrChangePct !== null && p.gfrChangePct <= -10 ? 'down' : 'muted'}>{pct(p.gfrChangePct)} จากครั้งก่อน</div>
           <div style={{ marginTop: 6 }}>ระยะ <Stage stage={p.stage} /></div>
+          {p.stage && <div style={{ fontSize: "0.9rem", maxWidth: 220, marginLeft: "auto" }}>{LABELS.ckdStage[p.stage].meaning}</div>}
           <div className="muted" style={{ fontSize: '0.85rem' }}>{p.latestGfr ? `ตรวจ ${thDate(p.latestGfr.collectedAt)}` : 'ยังไม่มีผล GFR'}</div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import type { PatientSummary } from '@rx/shared';
+import { LABELS, type PatientSummary } from '@rx/shared';
 import { api } from '../api';
 import { ErrorState, Loading, Section, Stage, Urgency } from '../components/ui';
 import { num, pct, thDate } from '../format';
@@ -9,7 +9,7 @@ import { MonthlyFigures, type MonthlySummary } from './Reports';
 interface DashboardData {
   counts: {
     total: number;
-    byColor: Record<'red' | 'yellow' | 'green', number>;
+    byColor: Record<'red' | 'orange' | 'yellow' | 'green', number>;
     byStage: Record<string, number>;
     pendingDecisions: number;
   };
@@ -39,7 +39,6 @@ export function Dashboard() {
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} />;
   const { counts } = data;
-  const stageMax = Math.max(1, ...Object.values(counts.byStage));
 
   return (
     <>
@@ -47,7 +46,7 @@ export function Dashboard() {
         <div>
           <h1>งานวันนี้</h1>
           <p className="muted" style={{ margin: 0 }}>
-            ผู้ป่วยในโครงการ {num(counts.total)} คน, รอแพทย์ตัดสินใจ DRP {num(counts.pendingDecisions)} รายการ
+            ผู้ป่วยในคลินิก {num(counts.total)} คน, รอแพทย์ตัดสินใจ DRP {num(counts.pendingDecisions)} รายการ
           </p>
         </div>
         <Link className="btn" to="/patients/new">ลงทะเบียนผู้ป่วย</Link>
@@ -59,7 +58,7 @@ export function Dashboard() {
       )}
 
       <div className="triage" aria-label="จำนวนผู้ป่วยตามสีความเร่งด่วน">
-        {(['red', 'yellow', 'green'] as const).map((c) => (
+        {(['red', 'orange', 'yellow', 'green'] as const).map((c) => (
           <div key={c} className={`t-${c}`}>
             <Urgency color={c} />
             <div className="count" style={{ marginTop: 10 }}>{num(counts.byColor[c])}</div>
@@ -97,20 +96,17 @@ export function Dashboard() {
       </div>
 
       <div className="grid-2">
-        <Section title="ผู้ป่วยแยกตามระยะโรคไต">
-          <div className="bars">
+        <Section title="5 ระยะของโรคไตเรื้อรัง (CKD)">
+          <div className="stage-rows">
             {(['1', '2', '3a', '3b', '4', '5'] as const).map((s) => (
-              <button
-                key={s}
-                className="bar"
-                style={{ background: 'none', border: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', padding: 0 }}
-                onClick={() => navigate(`/patients?stage=${s}`)}
-                aria-label={`ระยะ ${s} จำนวน ${counts.byStage[s]} คน`}
-              >
-                <span>ระยะ {s}</span>
-                <span className="track"><span className="fill" style={{ width: `${(counts.byStage[s]! / stageMax) * 100}%` }} /></span>
-                <span>{counts.byStage[s]}</span>
-              </button>
+              <Link key={s} className="stage-row" to={`/patients?stage=${s}`} aria-label={`ระยะ ${s} จำนวน ${counts.byStage[s]} คน`}>
+                <span className={`num s${s.charAt(0)}`}>{s}</span>
+                <span className="what">
+                  {LABELS.ckdStage[s].meaning}
+                  <small>{LABELS.ckdStage[s].range}</small>
+                </span>
+                <span className="count">{counts.byStage[s]} คน</span>
+              </Link>
             ))}
           </div>
         </Section>

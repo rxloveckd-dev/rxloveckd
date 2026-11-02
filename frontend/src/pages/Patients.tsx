@@ -28,7 +28,7 @@ export function Patients() {
   return (
     <>
       <div className="page-head">
-        <h1>ผู้ป่วยในโครงการ</h1>
+        <h1>ผู้ป่วยในคลินิก</h1>
         <Link className="btn" to="/patients/new">ลงทะเบียนผู้ป่วย</Link>
       </div>
 
@@ -48,7 +48,7 @@ export function Patients() {
           <label htmlFor="color">สีความเร่งด่วน</label>
           <select id="color" value={filters.color} onChange={(e) => set('color', e.target.value)}>
             <option value="">ทุกสี</option>
-            {(['red', 'yellow', 'green'] as const).map((c) => <option key={c} value={c}>{LABELS.urgency[c]}</option>)}
+            {(['red', 'orange', 'yellow', 'green'] as const).map((c) => <option key={c} value={c}>{LABELS.urgency[c]}</option>)}
           </select>
         </div>
       </div>

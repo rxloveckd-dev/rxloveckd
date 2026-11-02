@@ -320,9 +320,9 @@ assessments after the effective date use it and earlier assessments still show t
   color (green, yellow, red).
 - **FR-003c**: System MUST assign each active patient an urgency color (green, yellow, red) from
   the active clinical rule version, showing every reason that contributed. The color is the worst
-  of: red — CKD stage 4–5, GFR fall greater than the red threshold (default 25%) versus the
+  of: red — CKD stage 5, GFR fall greater than the red threshold (default 25%) versus the
   previous result, potassium above threshold, recorded hypotension, or missed appointment;
-  yellow — stage 3a–3b, GFR fall between the yellow and red thresholds (default 10–25%),
+  orange — CKD stage 4 (clinic request 2026-11-02); yellow — stage 3a–3b, GFR fall between the yellow and red thresholds (default 10–25%),
   herbal/painkiller use or incorrect medication taking at the latest visit, or missing/stale GFR;
   green — none of these.
 - **FR-004**: System MUST store each laboratory result with value, unit, collection date and time,

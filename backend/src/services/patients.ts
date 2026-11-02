@@ -1,6 +1,7 @@
 import type { LabResult, Patient, Prisma, Visit } from '@prisma/client';
 import {
   derivePatientStatus,
+  URGENCY_ORDER,
   maskNationalId,
   type ClinicalRules,
   type PatientDerived,
@@ -45,7 +46,7 @@ export function toSummary(p: PatientWithStatusData, rules: ClinicalRules, today:
   };
 }
 
-const COLOR_ORDER = { red: 0, yellow: 1, green: 2 } as const;
+const COLOR_ORDER = URGENCY_ORDER;
 
 /** All patients in the program with derived status, most urgent first. */
 export async function listSummaries(rules: ClinicalRules, today: Date, includeInactive = false) {

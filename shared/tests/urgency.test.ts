@@ -17,10 +17,19 @@ describe('urgency', () => {
     expect(urgency(base, DEFAULT_RULES)).toEqual({ color: 'green', reasons: [] });
   });
 
-  it('is red for stage 4–5', () => {
-    const r = urgency({ ...base, stage: '4' }, DEFAULT_RULES);
+  it('is orange for stage 4 and red for stage 5', () => {
+    const four = urgency({ ...base, stage: '4' }, DEFAULT_RULES);
+    expect(four.color).toBe('orange');
+    expect(four.reasons).toEqual(['CKD ระยะ 4']);
+    const five = urgency({ ...base, stage: '5' }, DEFAULT_RULES);
+    expect(five.color).toBe('red');
+    expect(five.reasons).toEqual(['CKD ระยะ 5']);
+  });
+
+  it('keeps red above orange when a red condition also applies to stage 4', () => {
+    const r = urgency({ ...base, stage: '4', appointment: 'missed' }, DEFAULT_RULES);
     expect(r.color).toBe('red');
-    expect(r.reasons).toContain('CKD ระยะ 4');
+    expect(r.reasons).toEqual(['เลยวันนัด', 'CKD ระยะ 4']);
   });
 
   it('is red when GFR fell more than 25%', () => {

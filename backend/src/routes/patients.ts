@@ -21,7 +21,7 @@ import { listSummaries, STATUS_INCLUDE, toSummary } from '../services/patients';
 const listQuery = z.object({
   q: z.string().trim().optional(),
   stage: z.enum(['1', '2', '3a', '3b', '4', '5']).optional(),
-  color: z.enum(['green', 'yellow', 'red']).optional(),
+  color: z.enum(['green', 'yellow', 'orange', 'red']).optional(),
   appointment: z.enum(['upcoming', 'missed']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),

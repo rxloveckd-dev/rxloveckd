@@ -22,7 +22,7 @@ export function dashboardRouter(): Router {
   r.get('/dashboard', async (_req, res) => {
     const rules = await activeRules();
     const patients = await listSummaries(rules, new Date());
-    const byColor: Record<UrgencyColor, number> = { red: 0, yellow: 0, green: 0 };
+    const byColor: Record<UrgencyColor, number> = { red: 0, orange: 0, yellow: 0, green: 0 };
     const byStage: Record<CkdStage | 'unknown', number> = { '1': 0, '2': 0, '3a': 0, '3b': 0, '4': 0, '5': 0, unknown: 0 };
     for (const p of patients) {
       byColor[p.color] += 1;

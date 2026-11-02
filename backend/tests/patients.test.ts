@@ -52,7 +52,8 @@ describe('patients (US1)', () => {
     await pharm.post(`/api/patients/${body.patient.id}/labs`).send({ test: 'gfr', value: 20, unit: 'mL/min/1.73m²', collectedAt: '2026-10-25' });
     expect((await pharm.get('/api/patients?stage=4')).body.items).toHaveLength(1);
     expect((await pharm.get('/api/patients?stage=2')).body.items).toHaveLength(0);
-    expect((await pharm.get('/api/patients?color=red')).body.items).toHaveLength(1);
+    expect((await pharm.get('/api/patients?color=orange')).body.items).toHaveLength(1); // stage 4 = orange
+    expect((await pharm.get('/api/patients?color=red')).body.items).toHaveLength(0);
   });
 
   it('uses opaque IDs, never HN or national ID, in record addresses', async () => {

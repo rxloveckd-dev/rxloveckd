@@ -49,7 +49,16 @@ export const LABELS = {
   },
   severity: { low: 'ต่ำ', medium: 'ปานกลาง', high: 'สูง' },
   prescriberDecision: { pending: 'รอผล', accepted: 'ยอมรับ', modified: 'ยอมรับแบบปรับ', declined: 'ไม่ยอมรับ' },
-  urgency: { green: 'เขียว', yellow: 'เหลือง', red: 'แดง' },
+  urgency: { green: 'เขียว', yellow: 'เหลือง', orange: 'ส้ม', red: 'แดง' },
+  /** 5 stages of CKD as explained to patients (clinic infographic). */
+  ckdStage: {
+    '1': { range: 'eGFR ≥90', meaning: 'ไตเริ่มมีความผิดปกติ (โปรตีนรั่ว)' },
+    '2': { range: 'eGFR 60–89', meaning: 'ไตเสื่อมเล็กน้อย' },
+    '3a': { range: 'eGFR 45–59', meaning: 'ไตเสื่อมปานกลาง ต้องเริ่มระวังอาหารและยา' },
+    '3b': { range: 'eGFR 30–44', meaning: 'ไตเสื่อมปานกลาง ต้องเริ่มระวังอาหารและยา' },
+    '4': { range: 'eGFR 15–29', meaning: 'ไตเสื่อมรุนแรง เตรียมความพร้อมรักษากับแพทย์เฉพาะทาง' },
+    '5': { range: 'eGFR <15', meaning: 'ไตวายเรื้อรังระยะสุดท้าย' },
+  },
   appointment: { none: 'ไม่มีนัด', scheduled: 'มีนัด', upcoming: 'ใกล้ถึงนัด', missed: 'เลยนัด' },
   role: { pharmacist: 'เภสัชกร', supervisor: 'หัวหน้าเภสัชกร', admin: 'ผู้ดูแลระบบ' },
 } as const;

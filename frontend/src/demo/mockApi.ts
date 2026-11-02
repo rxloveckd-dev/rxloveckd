@@ -6,6 +6,7 @@
 import {
   DEFAULT_RULES,
   derivePatientStatus,
+  URGENCY_ORDER,
   drpCreateSchema,
   drpDecisionSchema,
   labCreateSchema,
@@ -285,7 +286,7 @@ function summary(p: Store['patients'][number]): PatientSummary {
   };
 }
 
-const COLOR_ORDER = { red: 0, yellow: 1, green: 2 } as const;
+const COLOR_ORDER = URGENCY_ORDER;
 const summaries = () =>
   store.patients
     .filter((p) => p.programStatus === 'active')
@@ -452,7 +453,7 @@ const routes: [string, RegExp, Handler][] = [
   ['GET', /^\/dashboard$/, () => {
     clinical();
     const patients = summaries();
-    const byColor = { red: 0, yellow: 0, green: 0 };
+    const byColor = { red: 0, orange: 0, yellow: 0, green: 0 };
     const byStage: Record<string, number> = { '1': 0, '2': 0, '3a': 0, '3b': 0, '4': 0, '5': 0, unknown: 0 };
     for (const p of patients) {
       byColor[p.color] += 1;
