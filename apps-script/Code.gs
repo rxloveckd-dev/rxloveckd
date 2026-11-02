@@ -274,6 +274,37 @@ function saveUser(input) {
   return { users: listUsers(), note: shareNote };
 }
 
+/**
+ * Removes a user from the users tab and their Sheet sharing. Their past records keep their email,
+ * so "recorded by" history is unchanged.
+ */
+function deleteUser(email) {
+  const me = requireSupervisor();
+  const target = String(email || '').trim().toLowerCase();
+  if (!target) throw new Error('ไม่พบผู้ใช้');
+  if (target === me.id) throw new Error('ไม่สามารถลบบัญชีของตัวเองได้');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let shareNote = '';
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const sheet = ss.getSheetByName('users');
+    const emails = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues() : [];
+    const idx = emails.findIndex(function (r) { return String(r[0]).trim().toLowerCase() === target; });
+    if (idx < 0) throw new Error('ไม่พบผู้ใช้');
+    sheet.deleteRow(idx + 2);
+    try {
+      if (ss.getEditors().some(function (u) { return u.getEmail().toLowerCase() === target; })) ss.removeEditor(target);
+    } catch (e) {
+      shareNote = 'ลบผู้ใช้แล้ว แต่ยกเลิกการแชร์ Sheet อัตโนมัติไม่สำเร็จ กรุณานำ ' + target + ' ออกจากการแชร์เอง';
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  audit(me.id, 'delete', 'user', target, 'ok');
+  return { users: listUsers(), note: shareNote };
+}
+
 /** Change the clinic username/password; the current username and password are required. */
 function changeLogin(currentUsername, currentPassword, newUsername, newPassword) {
   const me = requireSupervisor();

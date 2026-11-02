@@ -389,3 +389,6 @@ td.num, th.num { text-align: right; }
 @media (prefers-reduced-motion: reduce) {
   .share-fill, .report-body { transition: none; }
 }
+
+.btn.danger { color: var(--red); border-color: #e9b4b4; }
+.btn.danger:hover { background: var(--red-bg); }

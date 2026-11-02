@@ -397,6 +397,19 @@ const routes: [string, RegExp, Handler][] = [
       note: '',
     };
   }],
+  ['POST', /^\/admin\/users\/delete$/, (_m, body) => {
+    const current = me();
+    if (current.role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะหัวหน้าเภสัชกรที่จัดการผู้ใช้ได้');
+    const email = String((body as { email?: string })?.email ?? '').trim().toLowerCase();
+    if (email === current.username) throw new MockHttpError(400, 'ไม่สามารถลบบัญชีของตัวเองได้');
+    const i = store.users.findIndex((u) => u.username === email);
+    if (i < 0) throw new MockHttpError(404, 'ไม่พบผู้ใช้');
+    store.users.splice(i, 1);
+    return {
+      users: store.users.map((u) => ({ email: u.username, displayName: u.displayName, role: u.role, active: u.active !== false, username: u.username, hasPassword: true })),
+      note: '',
+    };
+  }],
   ['POST', /^\/auth\/change$/, () => {
     throw new MockHttpError(400, 'เวอร์ชันสาธิตเปลี่ยนรหัสผ่านไม่ได้');
   }],
@@ -578,6 +591,11 @@ const routes: [string, RegExp, Handler][] = [
 
 export async function mockApi(path: string, method: string, body: unknown): Promise<unknown> {
   const [pathname = '', qs = ''] = path.split('?');
+  if (GAS && pathname === '/admin/users/delete') {
+    const res = await gasCall<{ users: unknown[]; note: string }>('deleteUser', (body as { email?: string })?.email ?? '');
+    loaded = false;
+    return res;
+  }
   if (GAS && (pathname === '/admin/users' || pathname === '/auth/change')) {
     if (pathname === '/auth/change') {
       const b = (body ?? {}) as Record<string, string>;

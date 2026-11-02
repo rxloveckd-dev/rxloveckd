@@ -128,6 +128,14 @@ function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved:
     setError('');
     save.mutate({ ...u, ...patch });
   };
+  const remove = useMutation({
+    mutationFn: () => api<{ users: ManagedUser[]; note: string }>('/admin/users/delete', { method: 'POST', json: { email: u.email } }),
+    onSuccess: (res) => {
+      qc.setQueryData(['admin-users'], { users: [...res.users] });
+      onSaved(res.note);
+    },
+    onError: (err) => setError(message(err)),
+  });
   const [setting, setSetting] = useState(false);
   const [login, setLogin] = useState({ username: u.username ?? '', password: '', confirm: '' });
 
@@ -205,6 +213,21 @@ function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved:
             }}
           >
             {u.active ? 'ระงับการใช้งาน' : 'เปิดใช้งานอีกครั้ง'}
+          </button>
+        )}
+        {!self && (
+          <button
+            className="btn secondary small danger"
+            style={{ marginLeft: 6 }}
+            disabled={remove.isPending}
+            onClick={() => {
+              if (window.confirm(`ลบผู้ใช้ ${u.displayName} (${u.email})?\nคนนี้จะเข้าระบบไม่ได้อีก ข้อมูลที่เคยบันทึกไว้ยังอยู่ครบ`)) {
+                setError('');
+                remove.mutate();
+              }
+            }}
+          >
+            {remove.isPending ? 'กำลังลบ…' : 'ลบ'}
           </button>
         )}
       </td>
