@@ -80,7 +80,8 @@ export async function downloadMonthlyReport(month: string) {
 export const useMe = () =>
   useQuery({
     queryKey: ['me'],
-    queryFn: () => api<{ user: SessionUser; demoMode: boolean }>('/auth/me'),
+    queryFn: () =>
+      api<{ user: SessionUser; demoMode: boolean; signedIn?: boolean; loginConfigured?: boolean }>('/auth/me'),
     retry: false,
   });
 

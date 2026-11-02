@@ -553,11 +553,19 @@ export async function mockApi(path: string, method: string, body: unknown): Prom
   const route = routes.find(([m, re]) => m === method && re.test(pathname));
   if (!route) throw new MockHttpError(404, 'ไม่พบข้อมูล');
   if (GAS && pathname.startsWith('/auth/')) {
-    if (pathname !== '/auth/me') return { ok: true }; // signing in and out is done by the Google account
-    const user = await gasCall<SessionUser>('whoami');
-    store.session = user.id;
-    if (!store.users.some((u) => u.id === user.id)) store.users.push({ ...user, password: '' });
-    return { user, demoMode: false, gas: true };
+    // Google account identifies the person; the clinic username/password is checked in Code.gs.
+    const creds = (body ?? {}) as { username?: string; password?: string };
+    let info: { user: SessionUser; loginConfigured: boolean; signedIn: boolean };
+    if (pathname === '/auth/login') info = await gasCall('login', creds.username ?? '', creds.password ?? '');
+    else if (pathname === '/auth/setup') info = await gasCall('setLogin', creds.username ?? '', creds.password ?? '');
+    else if (pathname === '/auth/logout') {
+      await gasCall('logout');
+      loaded = false;
+      return { ok: true };
+    } else info = await gasCall('whoami');
+    store.session = info.user.id;
+    if (!store.users.some((u) => u.id === info.user.id)) store.users.push({ ...info.user, password: '' });
+    return { ...info, demoMode: false, gas: true };
   }
   if (!pathname.startsWith('/auth/')) await ensureLoaded();
   pending = [];

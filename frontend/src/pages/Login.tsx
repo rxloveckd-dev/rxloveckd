@@ -63,20 +63,26 @@ const STAGE_STRIP = [
   ['5', '#d32f2f'],
 ] as const;
 
-export function Login() {
+/** setup: first run in Apps Script mode, a supervisor chooses the clinic username/password. */
+export function Login({ setup = false }: { setup?: boolean }) {
   const qc = useQueryClient();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setError('');
+    if (setup && password !== confirm) {
+      setError('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+      return;
+    }
+    setBusy(true);
     try {
-      await api('/auth/login', { method: 'POST', json: { username, password } });
+      await api(setup ? '/auth/setup' : '/auth/login', { method: 'POST', json: { username, password } });
       await qc.invalidateQueries({ queryKey: ['me'] });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่');
@@ -115,8 +121,12 @@ export function Login() {
 
       <section className="login-panel">
         <form onSubmit={submit} className="login-form" noValidate>
-          <h2>เข้าสู่ระบบ</h2>
-          <p className="muted" style={{ margin: '-6px 0 6px' }}>สำหรับเภสัชกรและเจ้าหน้าที่คลินิก</p>
+          <h2>{setup ? 'ตั้งชื่อผู้ใช้และรหัสผ่าน' : 'เข้าสู่ระบบ'}</h2>
+          <p className="muted" style={{ margin: '-6px 0 6px' }}>
+            {setup
+              ? 'ครั้งแรกเท่านั้น: กำหนดชื่อผู้ใช้และรหัสผ่านที่เจ้าหน้าที่คลินิกจะใช้เข้าระบบ'
+              : 'สำหรับเภสัชกรและเจ้าหน้าที่คลินิก'}
+          </p>
           <Field label="ชื่อผู้ใช้" htmlFor="u">
             <input id="u" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
           </Field>
@@ -125,7 +135,7 @@ export function Login() {
               <input
                 id="p"
                 type={show ? 'text' : 'password'}
-                autoComplete="current-password"
+                autoComplete={setup ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -135,9 +145,14 @@ export function Login() {
               </button>
             </div>
           </Field>
+          {setup && (
+            <Field label="ยืนยันรหัสผ่าน" htmlFor="p2">
+              <input id="p2" type={show ? 'text' : 'password'} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            </Field>
+          )}
           {error && <div className="alert" role="alert">{error}</div>}
           <button className="btn login-submit" disabled={busy || !username || !password}>
-            {busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
+            {busy ? 'กำลังบันทึก…' : setup ? 'บันทึกและเข้าสู่ระบบ' : 'เข้าสู่ระบบ'}
           </button>
         </form>
       </section>

@@ -79,8 +79,81 @@ function audit(email, action, entity, entityId, outcome) {
     .appendRow([new Date().toISOString(), email || '', action, entity, entityId || '', outcome || 'ok']);
 }
 
-/** The signed-in Google user, checked against the `users` tab. Throws a Thai message if not allowed. */
-function requireUser(clinicalOnly) {
+// ---------------------------------------------------------------- app sign-in (second factor)
+// The clinic's shared username/password is stored only as a salted SHA-256 hash in Script
+// Properties (never in the page or the repository). It is set once from the app by a supervisor.
+const SESSION_HOURS = 8;
+const MAX_FAILS = 5;
+const LOCK_MINUTES = 15;
+
+function hash(text, salt) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '|' + text, Utilities.Charset.UTF_8)
+    .map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); })
+    .join('');
+}
+
+function loginConfigured() {
+  return !!PropertiesService.getScriptProperties().getProperty('LOGIN_HASH');
+}
+
+function hasSession() {
+  const until = Number(PropertiesService.getUserProperties().getProperty('SESSION_UNTIL') || 0);
+  return until > Date.now();
+}
+
+function startSession() {
+  PropertiesService.getUserProperties().setProperty('SESSION_UNTIL', String(Date.now() + SESSION_HOURS * 3600 * 1000));
+}
+
+/** First run only: a supervisor sets the username and password. */
+function setLogin(username, password) {
+  const user = requireAllowedEmail();
+  if (user.role !== 'supervisor') throw new Error('เฉพาะหัวหน้าเภสัชกรที่ตั้งรหัสผ่านได้');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    if (loginConfigured()) throw new Error('ตั้งรหัสผ่านไว้แล้ว');
+    if (!username || String(password || '').length < 4) throw new Error('กรุณาระบุชื่อผู้ใช้ และรหัสผ่านอย่างน้อย 4 ตัว');
+    const salt = Utilities.getUuid();
+    PropertiesService.getScriptProperties().setProperties({
+      LOGIN_SALT: salt,
+      LOGIN_HASH: hash(String(username).trim().toLowerCase() + '\n' + password, salt),
+    });
+  } finally {
+    lock.releaseLock();
+  }
+  audit(user.id, 'update', 'login_settings', '', 'ok');
+  startSession();
+  return whoami();
+}
+
+function login(username, password) {
+  const user = requireAllowedEmail();
+  const cache = CacheService.getScriptCache();
+  const key = 'fails:' + user.id;
+  const fails = Number(cache.get(key) || 0);
+  if (fails >= MAX_FAILS) throw new Error('ใส่รหัสผ่านผิดหลายครั้ง กรุณารอ ' + LOCK_MINUTES + ' นาทีแล้วลองใหม่');
+  const props = PropertiesService.getScriptProperties();
+  const ok = props.getProperty('LOGIN_HASH') ===
+    hash(String(username || '').trim().toLowerCase() + '\n' + (password || ''), props.getProperty('LOGIN_SALT') || '');
+  if (!ok) {
+    cache.put(key, String(fails + 1), LOCK_MINUTES * 60);
+    audit(user.id, 'login', 'app', '', 'denied');
+    throw new Error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+  }
+  cache.remove(key);
+  startSession();
+  audit(user.id, 'login', 'app', '', 'ok');
+  return whoami();
+}
+
+function logout() {
+  PropertiesService.getUserProperties().deleteProperty('SESSION_UNTIL');
+  return { ok: true };
+}
+
+/** The signed-in Google user if listed in the `users` tab (no app password check). */
+function requireAllowedEmail() {
   ensureSetup();
   const email = (Session.getActiveUser().getEmail() || '').toLowerCase();
   if (!email) throw new Error('ไม่สามารถระบุบัญชี Google ได้ กรุณาเข้าสู่ระบบ Google แล้วลองใหม่');
@@ -91,11 +164,18 @@ function requireUser(clinicalOnly) {
     audit(email, 'denied', 'app', '', 'denied');
     throw new Error('บัญชี ' + email + ' ยังไม่มีสิทธิ์ใช้งาน กรุณาติดต่อหัวหน้าเภสัชกร');
   }
+  return { id: email, username: email, displayName: user.displayName || email, role: user.role };
+}
+
+/** Allowed Google account AND a valid app sign-in; clinicalOnly also requires a clinical role. */
+function requireUser(clinicalOnly) {
+  const user = requireAllowedEmail();
+  if (!hasSession()) throw new Error('กรุณาเข้าสู่ระบบ');
   if (clinicalOnly && CLINICAL_ROLES.indexOf(user.role) < 0) {
-    audit(email, 'denied', 'patient_data', '', 'denied');
+    audit(user.id, 'denied', 'patient_data', '', 'denied');
     throw new Error('บัญชีนี้ไม่มีสิทธิ์ดูข้อมูลผู้ป่วย');
   }
-  return { id: email, username: email, displayName: user.displayName || email, role: user.role };
+  return user;
 }
 
 // ---------------------------------------------------------------- web app
@@ -106,9 +186,10 @@ function doGet() {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-/** Called by the page on start: who am I? */
+/** Called by the page on start: the Google user plus whether the app sign-in is set up and active. */
 function whoami() {
-  return requireUser(false);
+  const user = requireAllowedEmail();
+  return { user: user, loginConfigured: loginConfigured(), signedIn: hasSession() };
 }
 
 /** All clinical data plus staff names (for "recorded by"). */

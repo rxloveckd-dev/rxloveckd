@@ -47,6 +47,14 @@ export function App() {
   if (me.isLoading) return <Loading />;
   if (GAS_MODE && (me.isError || !me.data)) return <NoAccess error={me.error} />;
   if (me.isError || !me.data) return <Login />;
+  if (GAS_MODE && !me.data.signedIn) {
+    // Google account is allowed; now the clinic username/password (set once by a supervisor).
+    const setup = !me.data.loginConfigured;
+    if (setup && me.data.user.role !== 'supervisor') {
+      return <NoAccess error={new ApiError(403, 'ยังไม่ได้ตั้งรหัสผ่านเข้าระบบ กรุณาให้หัวหน้าเภสัชกรเปิดระบบครั้งแรก')} />;
+    }
+    return <Login setup={setup} />;
+  }
 
   const { user, demoMode } = me.data;
   const clinical = user.role !== 'admin';
@@ -68,7 +76,8 @@ export function App() {
     // Drop patient data from memory, then mark the user as signed out so <App> shows the login page.
     // (qc.clear() alone leaves mounted queries showing their last result.)
     qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
-    qc.setQueryData(['me'], null);
+    if (GAS_MODE) await qc.invalidateQueries({ queryKey: ['me'] }); // still the same Google account, now signed out
+    else qc.setQueryData(['me'], null);
   }
 
   return (
@@ -96,11 +105,8 @@ export function App() {
             {LABELS.role[user.role]}
             <br />
           </span>
-          {GAS_MODE ? (
-            <small style={{ wordBreak: 'break-all' }}>{user.username}</small>
-          ) : (
-            <button className="btn secondary small" onClick={logout}>ออกจากระบบ</button>
-          )}
+          {GAS_MODE && <small style={{ wordBreak: 'break-all', display: 'block' }}>{user.username}</small>}
+          <button className="btn secondary small" onClick={logout}>ออกจากระบบ</button>
         </div>
       </nav>
       <div>
