@@ -1,0 +1,164 @@
+// Data model: specs/001-renal-pharmcare/data-model.md
+// SQLite for development/demo; switch provider to "mysql" for hospital deployment (research.md R2).
+// Enum-like columns are strings validated by the shared Zod schemas (SQLite has no enums).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  displayName  String
+  passwordHash String
+  role         String // pharmacist | supervisor | admin
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  patients Patient[] @relation("ResponsiblePharmacist")
+  visits   Visit[]
+  drps     Drp[]     @relation("DrpPharmacist")
+}
+
+model Patient {
+  id                      String   @id @default(cuid())
+  nationalId              String   @unique
+  hn                      String   @unique
+  title                   String
+  firstName               String
+  lastName                String
+  birthDate               DateTime
+  sex                     String // male | female
+  ckdCause                String?
+  programStatus           String   @default("active")
+  enrolledAt              DateTime
+  notes                   String?
+  responsiblePharmacistId String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  responsiblePharmacist User?        @relation("ResponsiblePharmacist", fields: [responsiblePharmacistId], references: [id])
+  labs                  LabResult[]
+  visits                Visit[]
+  medications           Medication[]
+  drps                  Drp[]
+
+  @@index([lastName])
+}
+
+model Visit {
+  id                 String   @id @default(cuid())
+  patientId          String
+  visitNo            Int
+  visitDate          DateTime
+  medicationTaking   String // correct | incorrect
+  herbalOrPainkiller Boolean
+  herbalDetail       String?
+  dietControlled     Boolean
+  seasoning          String // reduce_needed | adjusted
+  furtherAdjustments String?
+  nextAppointment    DateTime?
+  pharmacistId       String
+  createdAt          DateTime @default(now())
+
+  patient     Patient      @relation(fields: [patientId], references: [id])
+  pharmacist  User         @relation(fields: [pharmacistId], references: [id])
+  labs        LabResult[]
+  medications Medication[]
+  drps        Drp[]
+
+  @@unique([patientId, visitNo])
+  @@index([visitDate])
+}
+
+model LabResult {
+  id          String   @id @default(cuid())
+  patientId   String
+  visitId     String?
+  test        String // gfr | scr | albumin | potassium | sbp | dbp
+  value       Float
+  unit        String
+  collectedAt DateTime
+  origin      String   @default("user_entered") // measured | imported | user_entered
+  source      String   @default("บันทึกเอง")
+  createdAt   DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  visit   Visit?  @relation(fields: [visitId], references: [id])
+
+  @@index([patientId, test, collectedAt])
+}
+
+model Medication {
+  id         String    @id @default(cuid())
+  patientId  String
+  visitId    String?
+  drugName   String
+  strength   String?
+  directions String?
+  drugClass  String    @default("other")
+  status     String    @default("active") // active | stopped
+  startDate  DateTime?
+  notes      String?
+  createdAt  DateTime  @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  visit   Visit?  @relation(fields: [visitId], references: [id])
+
+  @@index([patientId, status])
+}
+
+model Drp {
+  id                 String    @id @default(cuid())
+  patientId          String
+  visitId            String?
+  recordedAt         DateTime  @default(now())
+  category           String
+  description        String
+  drugs              String?
+  severity           String
+  recommendation     String
+  prescriberDecision String    @default("pending")
+  prescriberReason   String?
+  decidedById        String?
+  decidedAt          DateTime?
+  status             String    @default("open") // open | closed
+  pharmacistId       String
+
+  patient    Patient @relation(fields: [patientId], references: [id])
+  visit      Visit?  @relation(fields: [visitId], references: [id])
+  pharmacist User    @relation("DrpPharmacist", fields: [pharmacistId], references: [id])
+
+  @@index([patientId])
+  @@index([recordedAt])
+}
+
+model RuleVersion {
+  id            String   @id @default(cuid())
+  version       Int      @unique
+  effectiveFrom DateTime
+  rationale     String
+  reviewer      String
+  approved      Boolean  @default(false)
+  values        String // JSON of ClinicalRules
+  createdById   String?
+  createdAt     DateTime @default(now())
+}
+
+model AuditLog {
+  id       String   @id @default(cuid())
+  at       DateTime @default(now())
+  actorId  String?
+  action   String // view | create | update | amend | export | login | denied
+  entity   String
+  entityId String?
+  outcome  String // ok | denied | error
+
+  @@index([entity, entityId])
+  @@index([at])
+}
