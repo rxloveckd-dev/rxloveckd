@@ -9,6 +9,22 @@ interface ManagedUser {
   displayName: string;
   role: Role;
   active: boolean;
+  /** Personal sign-in name; empty means the person uses the shared clinic login. */
+  username?: string;
+  hasPassword?: boolean;
+  /** Only sent when setting a new password; never returned. */
+  password?: string;
+}
+
+const USERNAME_RE = /^[a-z0-9._-]{3,30}$/;
+
+/** Validates a new personal username/password pair; returns a Thai error or ''. */
+function checkCredentials(username: string, password: string, confirm: string): string {
+  if (!password) return '';
+  if (!USERNAME_RE.test(username.trim().toLowerCase())) return 'ชื่อผู้ใช้ใช้ได้เฉพาะ a-z 0-9 . _ - ยาว 3–30 ตัว';
+  if (password.length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัว';
+  if (password !== confirm) return 'รหัสผ่านทั้งสองช่องไม่ตรงกัน';
+  return '';
 }
 
 const ROLES: Role[] = ['pharmacist', 'supervisor', 'admin'];
@@ -25,6 +41,9 @@ function AddUser({ onSaved }: { onSaved: (note: string) => void }) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<Role>('pharmacist');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const save = useMutation({
     mutationFn: (u: ManagedUser) => api<{ users: ManagedUser[]; note: string }>('/admin/users', { method: 'POST', json: u }),
@@ -37,11 +56,19 @@ function AddUser({ onSaved }: { onSaved: (note: string) => void }) {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    const problem = checkCredentials(username, password, confirm);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     try {
-      await save.mutateAsync({ email, displayName: name, role, active: true });
+      await save.mutateAsync({ email, displayName: name, role, active: true, username, password });
       setEmail('');
       setName('');
       setRole('pharmacist');
+      setUsername('');
+      setPassword('');
+      setConfirm('');
     } catch (err) {
       setError(message(err));
     }
@@ -62,13 +89,23 @@ function AddUser({ onSaved }: { onSaved: (note: string) => void }) {
           </select>
           <span className="muted" style={{ fontSize: '0.85rem' }}>{ROLE_HELP[role]}</span>
         </Field>
+        <Field label="ชื่อผู้ใช้สำหรับเข้าระบบ" htmlFor="ulog">
+          <input id="ulog" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="เช่น pharm.somsri" />
+        </Field>
+        <Field label="รหัสผ่าน (อย่างน้อย 6 ตัว)" htmlFor="upw">
+          <input id="upw" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </Field>
+        <Field label="ยืนยันรหัสผ่าน" htmlFor="upw2">
+          <input id="upw2" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        </Field>
         <div className="row" style={{ gridColumn: '1 / -1' }}>
           <button className="btn" disabled={save.isPending || !email}>{save.isPending ? 'กำลังบันทึก…' : 'เพิ่มผู้ใช้'}</button>
           {error && <span className="down">{error}</span>}
         </div>
         {GAS_MODE && (
           <p className="muted" style={{ gridColumn: '1 / -1', margin: 0, fontSize: '0.9rem' }}>
-            ระบบจะแชร์ Sheet ให้อีเมลนี้เป็นผู้แก้ไขให้อัตโนมัติ ผู้ใช้เข้าด้วยบัญชี Google ของตัวเอง แล้วใส่ชื่อผู้ใช้และรหัสผ่านของคลินิก
+            ระบบจะแชร์ Sheet ให้อีเมลนี้เป็นผู้แก้ไขให้อัตโนมัติ ผู้ใช้เข้าด้วยบัญชี Google ของตัวเอง แล้วใส่ชื่อผู้ใช้และรหัสผ่านที่ตั้งไว้ที่นี่
+            (ถ้าเว้นว่าง จะใช้ชื่อผู้ใช้และรหัสผ่านของคลินิกแทน)
           </p>
         )}
       </form>
@@ -91,6 +128,25 @@ function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved:
     setError('');
     save.mutate({ ...u, ...patch });
   };
+  const [setting, setSetting] = useState(false);
+  const [login, setLogin] = useState({ username: u.username ?? '', password: '', confirm: '' });
+
+  async function savePassword(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    const problem = login.password ? checkCredentials(login.username, login.password, login.confirm) : 'กรุณาใส่รหัสผ่านใหม่';
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    try {
+      await save.mutateAsync({ ...u, username: login.username, password: login.password });
+      setSetting(false);
+      setLogin({ username: login.username, password: '', confirm: '' });
+    } catch {
+      /* message shown by onError */
+    }
+  }
 
   return (
     <tr style={u.active ? undefined : { color: 'var(--ink-soft)' }}>
@@ -98,6 +154,28 @@ function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved:
         {u.displayName}
         {self && <span className="muted"> (คุณ)</span>}
         <div className="muted" style={{ fontSize: '0.85rem', fontWeight: 400, wordBreak: 'break-all' }}>{u.email}</div>
+        <div style={{ fontSize: '0.85rem', fontWeight: 400 }}>
+          {u.hasPassword ? (
+            <>เข้าระบบด้วย <b>{u.username}</b> และรหัสผ่านของตัวเอง</>
+          ) : (
+            <span className="muted">ใช้ชื่อผู้ใช้และรหัสผ่านของคลินิก</span>
+          )}
+        </div>
+        {setting && (
+          <form onSubmit={savePassword} className="row" style={{ marginTop: 8, alignItems: 'flex-end' }}>
+            <Field label="ชื่อผู้ใช้" htmlFor={`lu-${u.email}`}>
+              <input id={`lu-${u.email}`} autoComplete="off" value={login.username} onChange={(e) => setLogin({ ...login, username: e.target.value })} />
+            </Field>
+            <Field label="รหัสผ่านใหม่" htmlFor={`lp-${u.email}`}>
+              <input id={`lp-${u.email}`} type="password" autoComplete="new-password" value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} />
+            </Field>
+            <Field label="ยืนยันรหัสผ่าน" htmlFor={`lc-${u.email}`}>
+              <input id={`lc-${u.email}`} type="password" autoComplete="new-password" value={login.confirm} onChange={(e) => setLogin({ ...login, confirm: e.target.value })} />
+            </Field>
+            <button className="btn small" disabled={save.isPending}>บันทึกรหัสผ่าน</button>
+            <button type="button" className="btn secondary small" onClick={() => setSetting(false)}>ยกเลิก</button>
+          </form>
+        )}
         {error && <div className="down" style={{ fontSize: '0.85rem' }}>{error}</div>}
       </td>
       <td data-label="สิทธิ์">
@@ -113,6 +191,11 @@ function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved:
       </td>
       <td data-label="สถานะ">{u.active ? <span className="up">ใช้งานได้</span> : 'ระงับแล้ว'}</td>
       <td data-label="">
+        {!setting && (
+          <button className="btn secondary small" style={{ marginRight: 6 }} onClick={() => setSetting(true)}>
+            {u.hasPassword ? 'เปลี่ยนรหัสผ่าน' : 'ตั้งรหัสผ่าน'}
+          </button>
+        )}
         {!self && (
           <button
             className="btn secondary small"

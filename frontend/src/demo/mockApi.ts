@@ -379,8 +379,9 @@ const routes: [string, RegExp, Handler][] = [
   ['POST', /^\/admin\/users$/, (_m, body) => {
     const current = me();
     if (current.role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะหัวหน้าเภสัชกรที่จัดการผู้ใช้ได้');
-    const b = (body ?? {}) as { email?: string; displayName?: string; role?: string; active?: boolean };
+    const b = (body ?? {}) as { email?: string; displayName?: string; role?: string; active?: boolean; password?: string };
     const email = String(b.email ?? '').trim().toLowerCase();
+    if (b.password && b.password.length < 6) throw new MockHttpError(400, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัว');
     if (!email) throw new MockHttpError(400, 'กรุณาระบุอีเมลหรือชื่อผู้ใช้');
     if (!['pharmacist', 'supervisor', 'admin'].includes(String(b.role))) throw new MockHttpError(400, 'สิทธิ์ไม่ถูกต้อง');
     if (email === current.username && (b.active === false || b.role !== 'supervisor')) {
@@ -388,9 +389,13 @@ const routes: [string, RegExp, Handler][] = [
     }
     const existing = store.users.find((u) => u.username === email);
     const fields = { displayName: String(b.displayName ?? '').trim() || email, role: b.role as SessionUser['role'], active: b.active !== false };
-    if (existing) Object.assign(existing, fields);
-    else store.users.push({ id: newId(), username: email, password: 'demo1234', ...fields });
-    return { users: store.users.map((u) => ({ email: u.username, displayName: u.displayName, role: u.role, active: u.active !== false })), note: '' };
+    // Demo: the sign-in name is the account name itself; a new password replaces the demo one.
+    if (existing) Object.assign(existing, fields, b.password ? { password: b.password } : {});
+    else store.users.push({ id: newId(), username: email, password: b.password || 'demo1234', ...fields });
+    return {
+      users: store.users.map((u) => ({ email: u.username, displayName: u.displayName, role: u.role, active: u.active !== false, username: u.username, hasPassword: true })),
+      note: '',
+    };
   }],
   ['POST', /^\/auth\/change$/, () => {
     throw new MockHttpError(400, 'เวอร์ชันสาธิตเปลี่ยนรหัสผ่านไม่ได้');

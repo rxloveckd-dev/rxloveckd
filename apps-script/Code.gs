@@ -15,7 +15,8 @@ const TABLES = {
   labs: ['id', 'patientId', 'visitId', 'test', 'value', 'unit', 'collectedAt', 'origin', 'source'],
   medications: ['id', 'patientId', 'visitId', 'drugName', 'strength', 'directions', 'drugClass', 'status', 'createdAt'],
   drps: ['id', 'patientId', 'visitId', 'recordedAt', 'category', 'description', 'drugs', 'severity', 'recommendation', 'prescriberDecision', 'prescriberReason', 'decidedById', 'pharmacistId'],
-  users: ['email', 'displayName', 'role', 'active'],
+  // username/passwordHash/passwordSalt: optional personal sign-in (hash only, never the password).
+  users: ['email', 'displayName', 'role', 'active', 'username', 'passwordHash', 'passwordSalt'],
   audit: ['at', 'email', 'action', 'entity', 'entityId', 'outcome'],
 };
 const DATA_TABLES = ['patients', 'visits', 'labs', 'medications', 'drps'];
@@ -134,9 +135,16 @@ function login(username, password) {
   const key = 'fails:' + user.id;
   const fails = Number(cache.get(key) || 0);
   if (fails >= MAX_FAILS) throw new Error('ใส่รหัสผ่านผิดหลายครั้ง กรุณารอ ' + LOCK_MINUTES + ' นาทีแล้วลองใหม่');
-  const props = PropertiesService.getScriptProperties();
-  const ok = props.getProperty('LOGIN_HASH') ===
-    hash(String(username || '').trim().toLowerCase() + '\n' + (password || ''), props.getProperty('LOGIN_SALT') || '');
+  // A personal username/password (set by a supervisor) replaces the shared clinic login for that person.
+  const row = userRow(user.id);
+  const name = String(username || '').trim().toLowerCase();
+  let ok;
+  if (row && row.passwordHash) {
+    ok = name === String(row.username).trim().toLowerCase() && hash(password || '', row.passwordSalt) === row.passwordHash;
+  } else {
+    const props = PropertiesService.getScriptProperties();
+    ok = props.getProperty('LOGIN_HASH') === hash(name + '\n' + (password || ''), props.getProperty('LOGIN_SALT') || '');
+  }
   if (!ok) {
     cache.put(key, String(fails + 1), LOCK_MINUTES * 60);
     audit(user.id, 'login', 'app', '', 'denied');
@@ -151,6 +159,11 @@ function login(username, password) {
 function logout() {
   PropertiesService.getUserProperties().deleteProperty('SESSION_UNTIL');
   return { ok: true };
+}
+
+/** The users-tab row for an email (trimmed, case-insensitive), or undefined. */
+function userRow(email) {
+  return readTable('users').find(function (u) { return String(u.email).trim().toLowerCase() === email; });
 }
 
 /** The signed-in Google user if listed in the `users` tab (no app password check). */
@@ -198,6 +211,8 @@ function listUsers() {
       displayName: String(u.displayName || '').trim(),
       role: String(u.role).trim(),
       active: String(u.active).trim().toUpperCase() !== 'FALSE',
+      username: String(u.username || '').trim(),
+      hasPassword: !!u.passwordHash,
     };
   });
 }
@@ -215,6 +230,11 @@ function saveUser(input) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('อีเมลไม่ถูกต้อง');
   if (ROLES.indexOf(role) < 0) throw new Error('สิทธิ์ไม่ถูกต้อง');
   if (email === me.id && (!active || role !== 'supervisor')) throw new Error('ไม่สามารถลดสิทธิ์หรือระงับบัญชีของตัวเองได้');
+  const username = String((input && input.username) || '').trim().toLowerCase();
+  const password = String((input && input.password) || '');
+  if (password && !username) throw new Error('กรุณาระบุชื่อผู้ใช้สำหรับเข้าระบบ');
+  if (password && password.length < 6) throw new Error('รหัสผ่านต้องมีอย่างน้อย 6 ตัว');
+  if (username && !/^[a-z0-9._-]{3,30}$/.test(username)) throw new Error('ชื่อผู้ใช้ใช้ได้เฉพาะ a-z 0-9 . _ - ยาว 3–30 ตัว');
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -222,11 +242,22 @@ function saveUser(input) {
   try {
     const ss = SpreadsheetApp.getActive();
     const sheet = ss.getSheetByName('users');
-    const emails = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues() : [];
-    const idx = emails.findIndex(function (r) { return String(r[0]).trim().toLowerCase() === email; });
-    const row = [email, displayName, role, active ? 'TRUE' : 'FALSE'];
-    if (idx >= 0) sheet.getRange(idx + 2, 1, 1, 4).setValues([row]);
-    else sheet.appendRow(row);
+    const width = TABLES.users.length;
+    const existing = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getDisplayValues() : [];
+    const idx = existing.findIndex(function (r) { return String(r[0]).trim().toLowerCase() === email; });
+    if (username && existing.some(function (r, i) { return i !== idx && String(r[4]).trim().toLowerCase() === username; })) {
+      throw new Error('ชื่อผู้ใช้ ' + username + ' มีคนใช้แล้ว');
+    }
+    const old = idx >= 0 ? existing[idx] : ['', '', '', '', '', '', ''];
+    let passwordHash = old[5];
+    let passwordSalt = old[6];
+    if (password) {
+      passwordSalt = Utilities.getUuid();
+      passwordHash = hash(password, passwordSalt);
+    }
+    const row = [email, displayName, role, active ? 'TRUE' : 'FALSE', username || old[4], passwordHash, passwordSalt];
+    const target = idx >= 0 ? idx + 2 : sheet.getLastRow() + 1;
+    sheet.getRange(target, 1, 1, width).setNumberFormat('@').setValues([row]);
 
     try {
       if (active) ss.addEditor(email);
@@ -239,7 +270,7 @@ function saveUser(input) {
   } finally {
     lock.releaseLock();
   }
-  audit(me.id, active ? 'update' : 'deactivate', 'user', email, 'ok');
+  audit(me.id, active ? (password ? 'set_password' : 'update') : 'deactivate', 'user', email, 'ok');
   return { users: listUsers(), note: shareNote };
 }
 

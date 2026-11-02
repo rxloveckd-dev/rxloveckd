@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LABELS } from '@rx/shared';
-import { api, ApiError, GAS_MODE, STATIC_DEMO, USES_SHEETS, useMe } from './api';
+import { api, ApiError, GAS_MODE, STATIC_DEMO, useMe } from './api';
 import { Loading } from './components/ui';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -43,7 +42,6 @@ function NoAccess({ error }: { error: unknown }) {
 export function App() {
   const me = useMe();
   const qc = useQueryClient();
-  const [resetting, setResetting] = useState(false);
 
   if (me.isLoading) return <Loading />;
   if (GAS_MODE && (me.isError || !me.data)) return <NoAccess error={me.error} />;
@@ -61,18 +59,6 @@ export function App() {
   const clinical = user.role !== 'admin';
   // User management exists where accounts live in the browser layer (Apps Script or demo).
   const canManageUsers = user.role === 'supervisor' && (GAS_MODE || STATIC_DEMO);
-
-  async function resetDemoData() {
-    if (USES_SHEETS && !window.confirm('ล้างข้อมูลทั้งหมดใน Google Sheets ทดลอง แล้วใส่ข้อมูลสมมติชุดเริ่มต้นใหม่?')) return;
-    setResetting(true);
-    try {
-      const { resetDemo } = await import('./demo/mockApi');
-      await resetDemo();
-      await qc.invalidateQueries();
-    } finally {
-      setResetting(false);
-    }
-  }
 
   async function logout() {
     await api('/auth/logout', { method: 'POST' });
@@ -114,20 +100,9 @@ export function App() {
         </div>
       </nav>
       <div>
-        {demoMode && (
-          <div className="demo-bar">
-            โหมดทดลอง: ข้อมูลผู้ป่วยทั้งหมดเป็นข้อมูลสมมติ ห้ามบันทึกข้อมูลผู้ป่วยจริง
-            {STATIC_DEMO && (
-              <>
-                {USES_SHEETS
-                  ? ' ข้อมูลที่บันทึกจะเก็บลง Google Sheets ทดลองที่ทุกคนที่มีลิงก์เข้าถึงได้ '
-                  : ' ข้อมูลที่บันทึกเก็บในเบราว์เซอร์นี้เท่านั้น '}
-                <button className="btn secondary small" disabled={resetting} onClick={resetDemoData}>
-                  {resetting ? 'กำลังล้างข้อมูล…' : 'ล้างกลับเป็นข้อมูลเริ่มต้น'}
-                </button>
-              </>
-            )}
-          </div>
+        {/* Server dev/demo only; the public static demo shows no banner (clinic request). */}
+        {demoMode && !STATIC_DEMO && (
+          <div className="demo-bar">โหมดทดลอง: ข้อมูลผู้ป่วยทั้งหมดเป็นข้อมูลสมมติ ห้ามบันทึกข้อมูลผู้ป่วยจริง</div>
         )}
         <main className="main">
           {clinical ? (
