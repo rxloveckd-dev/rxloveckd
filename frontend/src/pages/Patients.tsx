@@ -11,8 +11,10 @@ export function Patients() {
     q: params.get('q') ?? '',
     stage: params.get('stage') ?? '',
     color: params.get('color') ?? '',
+    status: params.get('status') ?? '',
     page: params.get('page') ?? '1',
   };
+  const discharged = filters.status === 'discharged';
   const { data, isLoading, error } = usePatients(filters);
 
   const set = (key: string, value: string) => {
@@ -28,7 +30,13 @@ export function Patients() {
   return (
     <>
       <div className="page-head">
-        <h1>ผู้ป่วยในคลินิก</h1>
+        <div>
+          <h1>{discharged ? 'ผู้ป่วยที่จำหน่ายแล้ว' : 'ผู้ป่วยในคลินิก'}</h1>
+          <div className="status-tabs" role="group" aria-label="สถานะผู้ป่วย" style={{ marginTop: 8 }}>
+            <button aria-pressed={!discharged} onClick={() => set('status', '')}>กำลังติดตาม</button>
+            <button aria-pressed={discharged} onClick={() => set('status', 'discharged')}>จำหน่ายแล้ว</button>
+          </div>
+        </div>
         <Link className="btn" to="/patients/new">ลงทะเบียนผู้ป่วย</Link>
       </div>
 

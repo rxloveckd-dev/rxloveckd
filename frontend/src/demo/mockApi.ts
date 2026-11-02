@@ -8,6 +8,7 @@ import {
   DEFAULT_RULES,
   lastMonths,
   derivePatientStatus,
+  dischargeSchema,
   URGENCY_ORDER,
   drpCreateSchema,
   drpDecisionSchema,
@@ -28,7 +29,7 @@ import { z, ZodError } from 'zod';
 interface Store {
   users: (SessionUser & { password: string })[];
   session: string | null;
-  patients: { id: string; nationalId: string; hn: string; title: string; firstName: string; lastName: string; birthDate: string; sex: 'male' | 'female'; ckdCause: string | null; programStatus: string; enrolledAt: string; notes: string | null }[];
+  patients: { id: string; nationalId: string; hn: string; title: string; firstName: string; lastName: string; birthDate: string; sex: 'male' | 'female'; ckdCause: string | null; programStatus: string; enrolledAt: string; notes: string | null; dischargeCode?: string | null; dischargeDate?: string | null; dischargeNote?: string | null }[];
   labs: { id: string; patientId: string; visitId: string | null; test: string; value: number; unit: string; collectedAt: string; origin: string; source: string }[];
   visits: { id: string; patientId: string; visitNo: number; visitDate: string; medicationTaking: string; herbalOrPainkiller: boolean; herbalDetail: string | null; dietControlled: boolean; seasoning: string; furtherAdjustments: string | null; nextAppointment: string | null; aceiArb: string | null; aceiArbNoReason: string | null; pharmacistId: string }[];
   medications: { id: string; patientId: string; visitId: string | null; drugName: string; strength: string | null; directions: string | null; drugClass: string; status: string; createdAt: string }[];
@@ -289,14 +290,14 @@ function summary(p: Store['patients'][number]): PatientSummary {
 }
 
 const COLOR_ORDER = URGENCY_ORDER;
-const summaries = () =>
+const summaries = (status = 'active') =>
   store.patients
-    .filter((p) => p.programStatus === 'active')
+    .filter((p) => (p.programStatus ?? 'active') === status)
     .sort((a, b) => a.lastName.localeCompare(b.lastName, 'th'))
     .map(summary)
     .sort((a, b) => COLOR_ORDER[a.color] - COLOR_ORDER[b.color]);
 
-const profile = (p: Store['patients'][number]) => ({ ...summary(p), birthDate: p.birthDate, enrolledAt: p.enrolledAt, ckdCause: p.ckdCause, notes: p.notes });
+const profile = (p: Store['patients'][number]) => ({ ...summary(p), birthDate: p.birthDate, enrolledAt: p.enrolledAt, ckdCause: p.ckdCause, notes: p.notes, dischargeCode: p.dischargeCode ?? null, dischargeDate: p.dischargeDate ?? null, dischargeNote: p.dischargeNote ?? null });
 
 function drpView(d: Store['drps'][number]) {
   return { ...d, pharmacistName: userName(d.pharmacistId), decidedByName: userName(d.decidedById) };
@@ -313,6 +314,9 @@ export function monthly(month: string) {
     store.visits.filter((v) => inMonth(v.visitDate)),
     store.drps.filter((d) => inMonth(d.recordedAt)),
     store.patients.filter((p) => inMonth(p.enrolledAt)).length,
+    store.patients
+      .filter((p) => p.programStatus === 'discharged' && p.dischargeDate && inMonth(p.dischargeDate))
+      .map((p) => ({ dischargeCode: p.dischargeCode ?? null })),
   );
 }
 
@@ -336,7 +340,7 @@ const routes: [string, RegExp, Handler][] = [
 
   ['GET', /^\/patients$/, (_m, _b, q) => {
     clinical();
-    let items = summaries();
+    let items = summaries(q.get('status') === 'discharged' ? 'discharged' : 'active');
     const text = q.get('q')?.toLowerCase();
     if (text) items = items.filter((p) => `${p.hn} ${p.firstName} ${p.lastName}`.toLowerCase().includes(text));
     if (q.get('stage')) items = items.filter((p) => p.stage === q.get('stage'));
@@ -352,6 +356,21 @@ const routes: [string, RegExp, Handler][] = [
     if (store.patients.some((p) => p.hn === d.hn)) throw new MockHttpError(409, 'HN นี้ลงทะเบียนแล้ว', 'hn');
     const p = { id: newId(), ...d, birthDate: d.birthDate.toISOString(), enrolledAt: d.enrolledAt.toISOString(), ckdCause: d.ckdCause ?? null, notes: d.notes ?? null, programStatus: 'active' };
     insert('patients', p);
+    return { patient: profile(p) };
+  }],
+  ['POST', /^\/patients\/([^/]+)\/discharge$/, (m, body) => {
+    clinical();
+    const p = patientOr404(m[1]!);
+    const d = dischargeSchema.parse(body);
+    Object.assign(p, { programStatus: 'discharged', dischargeCode: d.dischargeCode, dischargeDate: d.dischargeDate.toISOString(), dischargeNote: d.dischargeNote ?? null });
+    update('patients', p);
+    return { patient: profile(p) };
+  }],
+  ['POST', /^\/patients\/([^/]+)\/reactivate$/, (m) => {
+    clinical();
+    const p = patientOr404(m[1]!);
+    Object.assign(p, { programStatus: 'active', dischargeCode: null, dischargeDate: null, dischargeNote: null });
+    update('patients', p);
     return { patient: profile(p) };
   }],
   ['GET', /^\/patients\/([^/]+)$/, (m) => {
@@ -481,6 +500,15 @@ const routes: [string, RegExp, Handler][] = [
     const month = q.get('month') ?? '';
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new MockHttpError(400, 'รูปแบบเดือนต้องเป็น ปปปป-ดด');
     return monthly(month);
+  }],
+  ['GET', /^\/reports\/trend$/, (_m, _b, q) => {
+    clinical();
+    const month = q.get('month') ?? '';
+    const months = Number(q.get('months') ?? 12);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !(months >= 2 && months <= 24)) {
+      throw new MockHttpError(400, 'รูปแบบเดือนต้องเป็น ปปปป-ดด');
+    }
+    return { items: lastMonths(months, new Date(`${month}-15T00:00:00Z`)).map(monthly) };
   }],
 ];
 

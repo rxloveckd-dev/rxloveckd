@@ -49,9 +49,9 @@ export function toSummary(p: PatientWithStatusData, rules: ClinicalRules, today:
 const COLOR_ORDER = URGENCY_ORDER;
 
 /** All patients in the program with derived status, most urgent first. */
-export async function listSummaries(rules: ClinicalRules, today: Date, includeInactive = false) {
+export async function listSummaries(rules: ClinicalRules, today: Date, status: 'active' | 'discharged' = 'active') {
   const rows = await prisma.patient.findMany({
-    where: includeInactive ? {} : { programStatus: 'active' },
+    where: { programStatus: status },
     include: STATUS_INCLUDE,
     orderBy: [{ lastName: 'asc' }],
   });

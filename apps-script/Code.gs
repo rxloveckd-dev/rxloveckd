@@ -9,7 +9,7 @@
  */
 
 const TABLES = {
-  patients: ['id', 'nationalId', 'hn', 'title', 'firstName', 'lastName', 'birthDate', 'sex', 'ckdCause', 'programStatus', 'enrolledAt', 'notes'],
+  patients: ['id', 'nationalId', 'hn', 'title', 'firstName', 'lastName', 'birthDate', 'sex', 'ckdCause', 'programStatus', 'enrolledAt', 'notes', 'dischargeCode', 'dischargeDate', 'dischargeNote'],
   visits: ['id', 'patientId', 'visitNo', 'visitDate', 'medicationTaking', 'herbalOrPainkiller', 'herbalDetail', 'dietControlled', 'seasoning', 'furtherAdjustments', 'nextAppointment', 'aceiArb', 'aceiArbNoReason', 'pharmacistId'],
   labs: ['id', 'patientId', 'visitId', 'test', 'value', 'unit', 'collectedAt', 'origin', 'source'],
   medications: ['id', 'patientId', 'visitId', 'drugName', 'strength', 'directions', 'drugClass', 'status', 'createdAt'],
@@ -31,11 +31,20 @@ function setup() {
   if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
 }
 
-/** Creates the tabs on first use, so setup() never has to be run by hand. */
+/**
+ * Creates missing tabs and adds new columns on first use after a code update, so setup() never
+ * has to be run by hand. New columns are only ever appended, so existing data keeps its place.
+ */
 function ensureSetup() {
   const ss = SpreadsheetApp.getActive();
-  const missing = Object.keys(TABLES).some(function (name) { return !ss.getSheetByName(name); });
-  if (missing) setup();
+  const outdated = Object.keys(TABLES).some(function (name) {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) return true;
+    const cols = TABLES[name];
+    const header = sheet.getRange(1, 1, 1, cols.length).getDisplayValues()[0];
+    return header.join('|') !== cols.join('|');
+  });
+  if (outdated) setup();
 }
 
 function json(data) {

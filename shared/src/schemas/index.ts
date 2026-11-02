@@ -5,7 +5,9 @@ const isoDate = z.coerce.date({ invalid_type_error: 'วันที่ไม่
 const optionalText = z.string().trim().max(2000).optional().nullable();
 
 export const SEX = ['male', 'female'] as const;
-export const PROGRAM_STATUS = ['active', 'exited_krt', 'transferred', 'deceased', 'withdrawn'] as const;
+export const PROGRAM_STATUS = ['active', 'discharged'] as const;
+export const DISCHARGE_CODES = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'] as const;
+export type DischargeCode = (typeof DISCHARGE_CODES)[number];
 export const LAB_TESTS = ['gfr', 'scr', 'hba1c', 'albumin', 'potassium', 'sbp', 'dbp'] as const;
 export const ACEI_ARB = ['yes', 'no'] as const;
 export const MEDICATION_TAKING = ['correct', 'incorrect'] as const;
@@ -40,11 +42,21 @@ export const patientCreateSchema = z.object({
 });
 export type PatientCreate = z.infer<typeof patientCreateSchema>;
 
-export const patientUpdateSchema = patientCreateSchema
-  .omit({ nationalId: true })
-  .partial()
-  .extend({ programStatus: z.enum(PROGRAM_STATUS).optional() });
+/** Demographic edits only; program status changes go through discharge / reactivate. */
+export const patientUpdateSchema = patientCreateSchema.omit({ nationalId: true }).partial();
 export type PatientUpdate = z.infer<typeof patientUpdateSchema>;
+
+export const dischargeSchema = z
+  .object({
+    dischargeCode: z.enum(DISCHARGE_CODES, { errorMap: () => ({ message: 'กรุณาเลือกสาเหตุการจำหน่าย' }) }),
+    dischargeDate: isoDate,
+    dischargeNote: optionalText,
+  })
+  .refine((d) => d.dischargeCode !== '12' || !!d.dischargeNote, {
+    message: 'กรุณาระบุสาเหตุเพิ่มเติม',
+    path: ['dischargeNote'],
+  });
+export type DischargeInput = z.infer<typeof dischargeSchema>;
 
 export const labCreateSchema = z.object({
   test: z.enum(LAB_TESTS),

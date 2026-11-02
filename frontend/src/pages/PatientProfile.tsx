@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { DRP_CATEGORY, LABELS, SEVERITY, type DrpCreate } from '@rx/shared';
-import { ApiError, usePatient, usePatientList, usePatientMutation } from '../api';
+import { DISCHARGE_CODES, dischargeSchema, DRP_CATEGORY, LABELS, SEVERITY, type DischargeCode, type DrpCreate } from '@rx/shared';
+import { ApiError, usePatient, usePatientList, usePatientMutation, type PatientProfile as PatientProfileData } from '../api';
 import { Empty, ErrorState, Field, Loading, Section, Stage, Urgency } from '../components/ui';
-import { num, pct, thDate } from '../format';
+import { num, pct, thDate, todayIso } from '../format';
 
 interface VisitRow {
   id: string;
@@ -272,6 +272,87 @@ function Drps({ id }: { id: string }) {
   );
 }
 
+/** Discharge (จำหน่าย) the patient with a reason, or show the discharge and allow undoing it. */
+function DischargePanel({ p }: { p: PatientProfileData }) {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState<DischargeCode | ''>('');
+  const [date, setDate] = useState(todayIso());
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+  const discharge = usePatientMutation<unknown, unknown>(p.id, `/patients/${p.id}/discharge`);
+  const reactivate = usePatientMutation<unknown, unknown>(p.id, `/patients/${p.id}/reactivate`);
+
+  if (p.programStatus === 'discharged') {
+    return (
+      <div className="discharged">
+        <div>
+          <b>จำหน่ายแล้ว</b> เมื่อ {thDate(p.dischargeDate)}: {p.dischargeCode ? `${p.dischargeCode} ${LABELS.discharge[p.dischargeCode]}` : '–'}
+          {p.dischargeNote ? ` (${p.dischargeNote})` : ''}
+        </div>
+        <button
+          className="btn secondary small"
+          disabled={reactivate.isPending}
+          onClick={() => {
+            if (window.confirm('ยกเลิกการจำหน่าย และกลับมาติดตามผู้ป่วยรายนี้ต่อ?')) reactivate.mutate({});
+          }}
+        >
+          ยกเลิกการจำหน่าย
+        </button>
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <div style={{ marginTop: 12 }}>
+        <button className="btn secondary small" onClick={() => setOpen(true)}>จำหน่ายผู้ป่วย</button>
+      </div>
+    );
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    const parsed = dischargeSchema.safeParse({ dischargeCode: code || undefined, dischargeDate: date, dischargeNote: note || null });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ครบ');
+      return;
+    }
+    try {
+      await discharge.mutateAsync({ dischargeCode: code, dischargeDate: date, dischargeNote: note || null });
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'บันทึกไม่สำเร็จ');
+    }
+  }
+
+  return (
+    <Section title="จำหน่ายผู้ป่วย">
+      <form onSubmit={submit} className="grid-3">
+        <Field label="สถานะจำหน่าย" htmlFor="dc">
+          <select id="dc" value={code} onChange={(e) => setCode(e.target.value as DischargeCode)}>
+            <option value="">เลือกสถานะ</option>
+            {DISCHARGE_CODES.map((c) => (
+              <option key={c} value={c}>{c} {LABELS.discharge[c]}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="วันที่จำหน่าย" htmlFor="dd">
+          <input id="dd" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label={code === '12' ? 'ระบุสาเหตุ' : 'หมายเหตุ (ถ้ามี)'} htmlFor="dn">
+          <input id="dn" value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <div className="row" style={{ gridColumn: '1 / -1' }}>
+          <button className="btn" disabled={discharge.isPending}>{discharge.isPending ? 'กำลังบันทึก…' : 'บันทึกการจำหน่าย'}</button>
+          <button type="button" className="btn secondary" onClick={() => setOpen(false)}>ยกเลิก</button>
+          {error && <span className="down">{error}</span>}
+        </div>
+      </form>
+    </Section>
+  );
+}
+
 export function PatientProfile() {
   const { id = '' } = useParams();
   const { data, isLoading, error } = usePatient(id);
@@ -310,6 +391,8 @@ export function PatientProfile() {
           <div className="muted" style={{ fontSize: '0.85rem' }}>{p.latestGfr ? `ตรวจ ${thDate(p.latestGfr.collectedAt)}` : 'ยังไม่มีผล GFR'}</div>
         </div>
       </div>
+
+      <DischargePanel p={p} />
 
       <div className="tabs" role="tablist">
         {TABS.map(([key, label]) => (

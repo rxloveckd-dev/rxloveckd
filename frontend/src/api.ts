@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LABELS, type MonthlySummary, type PatientSummary, type SessionUser } from '@rx/shared';
+import { LABELS, type DischargeCode, type MonthlySummary, type PatientSummary, type SessionUser } from '@rx/shared';
 
 /** GitHub Pages build: no server, the API is answered in the browser with synthetic data. */
 export const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
@@ -61,6 +61,10 @@ export async function downloadMonthlyReport(month: string) {
     ...Object.entries(s.drpsByCategory).map(
       ([k, v]) => [`DRP: ${LABELS.drpCategory[k as keyof typeof LABELS.drpCategory] ?? k}`, v] as [string, number],
     ),
+    ['จำหน่ายผู้ป่วย (คน)', s.discharges],
+    ...Object.entries(s.dischargesByReason).map(
+      ([k, v]) => [`จำหน่าย: ${k} ${LABELS.discharge[k as keyof typeof LABELS.discharge] ?? ''}`, v] as [string, number],
+    ),
   ];
   const csv = '﻿รายการ,จำนวน\n' + rows.map(([k, v]) => `"${k}",${v}`).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -81,6 +85,9 @@ export interface PatientProfile extends PatientSummary {
   enrolledAt: string;
   ckdCause: string | null;
   notes: string | null;
+  dischargeCode: DischargeCode | null;
+  dischargeDate: string | null;
+  dischargeNote: string | null;
 }
 
 export interface Paged<T> {

@@ -49,6 +49,14 @@ export function dashboardRouter(): Router {
     });
   });
 
+  r.get('/reports/trend', async (req, res) => {
+    const { month, months } = monthQuery
+      .extend({ months: z.coerce.number().int().min(2).max(24).default(12) })
+      .parse(req.query);
+    const list = lastMonths(months, new Date(`${month}-15T00:00:00Z`));
+    res.json({ items: await Promise.all(list.map((m) => monthlySummary(m))) });
+  });
+
   r.get('/reports/monthly', async (req, res) => {
     const { month } = monthQuery.parse(req.query);
     res.json(await monthlySummary(month));
@@ -76,6 +84,11 @@ export function dashboardRouter(): Router {
       { label: 'DRP ที่แพทย์ยอมรับ (รวมยอมรับแบบปรับ)', value: s.drpsAccepted },
       ...Object.entries(s.drpsByCategory).map(([k, v]) => ({
         label: `DRP: ${LABELS.drpCategory[k as keyof typeof LABELS.drpCategory] ?? k}`,
+        value: v,
+      })),
+      { label: 'จำหน่ายผู้ป่วย (คน)', value: s.discharges },
+      ...Object.entries(s.dischargesByReason).map(([k, v]) => ({
+        label: `จำหน่าย: ${k} ${LABELS.discharge[k as keyof typeof LABELS.discharge] ?? ''}`,
         value: v,
       })),
     ]);

@@ -10,6 +10,8 @@ export interface MonthlySummary {
   drps: number;
   drpsAccepted: number;
   drpsByCategory: Record<string, number>;
+  discharges: number;
+  dischargesByReason: Record<string, number>;
 }
 
 export function monthRange(month: string): { from: Date; to: Date } {
@@ -23,9 +25,15 @@ export function summarizeMonth(
   visits: { patientId: string; medicationTaking: string; herbalOrPainkiller: boolean; dietControlled: boolean; seasoning: string }[],
   drps: { category: string; prescriberDecision: string }[],
   newEnrollments: number,
+  discharges: { dischargeCode: string | null }[] = [],
 ): MonthlySummary {
   const drpsByCategory: Record<string, number> = {};
   for (const d of drps) drpsByCategory[d.category] = (drpsByCategory[d.category] ?? 0) + 1;
+  const dischargesByReason: Record<string, number> = {};
+  for (const d of discharges) {
+    const code = d.dischargeCode ?? '12';
+    dischargesByReason[code] = (dischargesByReason[code] ?? 0) + 1;
+  }
   return {
     month,
     visits: visits.length,
@@ -38,5 +46,7 @@ export function summarizeMonth(
     drps: drps.length,
     drpsAccepted: drps.filter((d) => d.prescriberDecision === 'accepted' || d.prescriberDecision === 'modified').length,
     drpsByCategory,
+    discharges: discharges.length,
+    dischargesByReason,
   };
 }

@@ -35,7 +35,10 @@ model Patient {
   birthDate               DateTime
   sex                     String // male | female
   ckdCause                String?
-  programStatus           String   @default("active")
+  programStatus           String   @default("active") // active | discharged
+  dischargeCode           String? // 01–12, see LABELS.discharge
+  dischargeDate           DateTime?
+  dischargeNote           String?
   enrolledAt              DateTime
   notes                   String?
   responsiblePharmacistId String?

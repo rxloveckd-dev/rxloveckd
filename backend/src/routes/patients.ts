@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  dischargeSchema,
   drpCreateSchema,
   drpDecisionSchema,
   labCreateSchema,
@@ -23,6 +24,7 @@ const listQuery = z.object({
   stage: z.enum(['1', '2', '3a', '3b', '4', '5']).optional(),
   color: z.enum(['green', 'yellow', 'orange', 'red']).optional(),
   appointment: z.enum(['upcoming', 'missed']).optional(),
+  status: z.enum(['active', 'discharged']).default('active'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
@@ -40,6 +42,9 @@ function profileResponse(p: Awaited<ReturnType<typeof findPatientOr404>>, rules:
     enrolledAt: p.enrolledAt,
     ckdCause: p.ckdCause,
     notes: p.notes,
+    dischargeCode: p.dischargeCode,
+    dischargeDate: p.dischargeDate,
+    dischargeNote: p.dischargeNote,
   };
 }
 
@@ -50,7 +55,7 @@ export function patientsRouter(): Router {
   r.get('/patients', async (req, res) => {
     const q = listQuery.parse(req.query);
     const rules = await activeRules();
-    let items = await listSummaries(rules, new Date());
+    let items = await listSummaries(rules, new Date(), q.status);
     if (q.q) {
       const needle = q.q.toLowerCase();
       items = items.filter((p) => `${p.hn} ${p.firstName} ${p.lastName}`.toLowerCase().includes(needle));
@@ -84,6 +89,28 @@ export function patientsRouter(): Router {
     await audit(req, 'update', 'patient', req.params.id);
     const p = await findPatientOr404(req.params.id);
     res.json({ patient: profileResponse(p, await activeRules()) });
+  });
+
+  // ---- discharge (จำหน่าย) and undo
+  r.post('/patients/:id/discharge', async (req, res) => {
+    await findPatientOr404(req.params.id);
+    const d = dischargeSchema.parse(req.body);
+    await prisma.patient.update({
+      where: { id: req.params.id },
+      data: { programStatus: 'discharged', dischargeCode: d.dischargeCode, dischargeDate: d.dischargeDate, dischargeNote: d.dischargeNote ?? null },
+    });
+    await audit(req, 'update', 'patient', req.params.id);
+    res.json({ patient: profileResponse(await findPatientOr404(req.params.id), await activeRules()) });
+  });
+
+  r.post('/patients/:id/reactivate', async (req, res) => {
+    await findPatientOr404(req.params.id);
+    await prisma.patient.update({
+      where: { id: req.params.id },
+      data: { programStatus: 'active', dischargeCode: null, dischargeDate: null, dischargeNote: null },
+    });
+    await audit(req, 'update', 'patient', req.params.id);
+    res.json({ patient: profileResponse(await findPatientOr404(req.params.id), await activeRules()) });
   });
 
   // ---- labs

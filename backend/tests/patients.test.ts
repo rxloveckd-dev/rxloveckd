@@ -56,6 +56,30 @@ describe('patients (US1)', () => {
     expect((await pharm.get('/api/patients?color=red')).body.items).toHaveLength(0);
   });
 
+  it('discharges a patient with a reason, lists them separately, and can undo it', async () => {
+    const pharm = await login('pharm');
+    const { body } = await pharm.post('/api/patients').send(patientBody()).expect(201);
+    const id = body.patient.id;
+
+    const noNote = await pharm.post(`/api/patients/${id}/discharge`).send({ dischargeCode: '12', dischargeDate: '2026-11-02' });
+    expect(noNote.status).toBe(400);
+    expect(noNote.body.error.message).toBe('กรุณาระบุสาเหตุเพิ่มเติม');
+
+    const res = await pharm.post(`/api/patients/${id}/discharge`).send({ dischargeCode: '02', dischargeDate: '2026-11-02' }).expect(200);
+    expect(res.body.patient.programStatus).toBe('discharged');
+    expect(res.body.patient.dischargeCode).toBe('02');
+    expect((await pharm.get('/api/patients')).body.total).toBe(0);
+    expect((await pharm.get('/api/patients?status=discharged')).body.total).toBe(1);
+
+    const month = await pharm.get('/api/reports/monthly?month=2026-11').expect(200);
+    expect(month.body.dischargesByReason).toEqual({ '02': 1 });
+
+    const back = await pharm.post(`/api/patients/${id}/reactivate`).expect(200);
+    expect(back.body.patient.programStatus).toBe('active');
+    expect(back.body.patient.dischargeCode).toBeNull();
+    expect(await prisma.auditLog.count({ where: { entity: 'patient', action: 'update' } })).toBe(2);
+  });
+
   it('uses opaque IDs, never HN or national ID, in record addresses', async () => {
     const pharm = await login('pharm');
     const { body } = await pharm.post('/api/patients').send(patientBody()).expect(201);

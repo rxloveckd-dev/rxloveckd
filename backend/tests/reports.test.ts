@@ -36,6 +36,13 @@ describe('dashboard and monthly report (US5, US6)', () => {
     expect(await prisma.auditLog.count({ where: { action: 'export' } })).toBe(1);
   });
 
+  it('returns a monthly trend ending at the chosen month', async () => {
+    const pharm = await login('pharm');
+    const res = await pharm.get('/api/reports/trend?month=2026-03&months=4').expect(200);
+    expect(res.body.items.map((m: { month: string }) => m.month)).toEqual(['2025-12', '2026-01', '2026-02', '2026-03']);
+    expect((await pharm.get('/api/reports/trend?month=2026-03&months=40')).status).toBe(400);
+  });
+
   it('rejects a malformed month', async () => {
     const pharm = await login('pharm');
     expect((await pharm.get('/api/reports/monthly?month=2026-13')).status).toBe(400);
