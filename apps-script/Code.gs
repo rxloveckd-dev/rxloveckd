@@ -31,6 +31,13 @@ function setup() {
   if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
 }
 
+/** Creates the tabs on first use, so setup() never has to be run by hand. */
+function ensureSetup() {
+  const ss = SpreadsheetApp.getActive();
+  const missing = Object.keys(TABLES).some(function (name) { return !ss.getSheetByName(name); });
+  if (missing) setup();
+}
+
 function json(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -51,6 +58,7 @@ function readTable(name) {
 }
 
 function doGet() {
+  ensureSetup();
   const out = {};
   Object.keys(TABLES).forEach(function (name) { out[name] = readTable(name); });
   return json({ ok: true, data: out });
@@ -68,6 +76,7 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
+    ensureSetup();
     const body = JSON.parse(e.postData.contents);
     const ss = SpreadsheetApp.getActive();
 

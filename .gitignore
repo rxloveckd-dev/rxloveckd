@@ -13,3 +13,4 @@ test-results/
 playwright-report/
 .playwright-mcp/
 dist-pages/
+apps-script/.clasp.json
