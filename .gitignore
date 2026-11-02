@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+backend/prisma/*.db
+backend/prisma/*.db-journal
+.claude/settings.local.json
+.claude/ralph-loop.local.md
+test-results/
+playwright-report/
