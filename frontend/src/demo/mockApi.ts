@@ -550,8 +550,7 @@ const routes: [string, RegExp, Handler][] = [
 
 export async function mockApi(path: string, method: string, body: unknown): Promise<unknown> {
   const [pathname = '', qs = ''] = path.split('?');
-  const route = routes.find(([m, re]) => m === method && re.test(pathname));
-  if (!route) throw new MockHttpError(404, 'ไม่พบข้อมูล');
+  // Apps Script sign-in calls go straight to Code.gs; /auth/setup has no local route.
   if (GAS && pathname.startsWith('/auth/')) {
     // Google account identifies the person; the clinic username/password is checked in Code.gs.
     const creds = (body ?? {}) as { username?: string; password?: string };
@@ -567,6 +566,8 @@ export async function mockApi(path: string, method: string, body: unknown): Prom
     if (!store.users.some((u) => u.id === info.user.id)) store.users.push({ ...info.user, password: '' });
     return { ...info, demoMode: false, gas: true };
   }
+  const route = routes.find(([m, re]) => m === method && re.test(pathname));
+  if (!route) throw new MockHttpError(404, 'ไม่พบข้อมูล');
   if (!pathname.startsWith('/auth/')) await ensureLoaded();
   pending = [];
   try {
