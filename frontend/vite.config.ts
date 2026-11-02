@@ -4,10 +4,11 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 
 // Modes:
 //   (default)  dev/production build talking to the Express API
-//   pages      static demo for https://rxloveckd-dev.github.io/rxloveckd/ (browser storage only)
+//   pages      static demo for https://rxloveckd-dev.github.io/rxloveckd/demo/ (browser storage only);
+//              the site root forwards to the clinic system (public-root/index.html)
 //   gas        one self-contained Index.html served by the private Google Apps Script web app
 export default defineConfig(({ mode }) => ({
-  base: mode === 'pages' ? '/rxloveckd/' : mode === 'gas' ? './' : '/',
+  base: mode === 'pages' ? '/rxloveckd/demo/' : mode === 'gas' ? './' : '/',
   define: {
     'import.meta.env.VITE_STATIC_DEMO': JSON.stringify(mode === 'pages' ? 'true' : 'false'),
     'import.meta.env.VITE_GAS': JSON.stringify(mode === 'gas' ? 'true' : 'false'),
