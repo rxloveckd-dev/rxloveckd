@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LABELS } from '@rx/shared';
-import { api, ApiError, STATIC_DEMO, useMe } from './api';
+import { api, ApiError, STATIC_DEMO, USES_SHEETS, useMe } from './api';
 import { Field, Loading } from './components/ui';
 import { Dashboard } from './pages/Dashboard';
 import { Patients } from './pages/Patients';
@@ -62,7 +62,7 @@ function Login() {
         {STATIC_DEMO && (
           <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
             เวอร์ชันทดลองออนไลน์: เข้าด้วย <b>pharm1</b> รหัสผ่าน <b>demo1234</b> ข้อมูลทั้งหมดเป็นข้อมูลสมมติ
-            และเก็บอยู่ในเบราว์เซอร์นี้เท่านั้น
+            {USES_SHEETS ? ' และบันทึกลง Google Sheets ทดลอง' : ' และเก็บอยู่ในเบราว์เซอร์นี้เท่านั้น'}
           </p>
         )}
       </form>
@@ -73,6 +73,7 @@ function Login() {
 export function App() {
   const me = useMe();
   const qc = useQueryClient();
+  const [resetting, setResetting] = useState(false);
 
   if (me.isLoading) return <Loading />;
   if (me.isError || !me.data) return <Login />;
@@ -81,10 +82,15 @@ export function App() {
   const clinical = user.role !== 'admin';
 
   async function resetDemoData() {
-    const { resetDemo } = await import('./demo/mockApi');
-    resetDemo();
-    await api('/auth/login', { method: 'POST', json: { username: user.username, password: 'demo1234' } }).catch(() => null);
-    await qc.invalidateQueries();
+    if (USES_SHEETS && !window.confirm('ล้างข้อมูลทั้งหมดใน Google Sheets ทดลอง แล้วใส่ข้อมูลสมมติชุดเริ่มต้นใหม่?')) return;
+    setResetting(true);
+    try {
+      const { resetDemo } = await import('./demo/mockApi');
+      await resetDemo();
+      await qc.invalidateQueries();
+    } finally {
+      setResetting(false);
+    }
   }
 
   async function logout() {
@@ -127,8 +133,12 @@ export function App() {
             โหมดทดลอง: ข้อมูลผู้ป่วยทั้งหมดเป็นข้อมูลสมมติ ห้ามบันทึกข้อมูลผู้ป่วยจริง
             {STATIC_DEMO && (
               <>
-                {' '}ข้อมูลที่บันทึกเก็บในเบราว์เซอร์นี้เท่านั้น{' '}
-                <button className="btn secondary small" onClick={resetDemoData}>ล้างกลับเป็นข้อมูลเริ่มต้น</button>
+                {USES_SHEETS
+                  ? ' ข้อมูลที่บันทึกจะเก็บลง Google Sheets ทดลองที่ทุกคนที่มีลิงก์เข้าถึงได้ '
+                  : ' ข้อมูลที่บันทึกเก็บในเบราว์เซอร์นี้เท่านั้น '}
+                <button className="btn secondary small" disabled={resetting} onClick={resetDemoData}>
+                  {resetting ? 'กำลังล้างข้อมูล…' : 'ล้างกลับเป็นข้อมูลเริ่มต้น'}
+                </button>
               </>
             )}
           </div>

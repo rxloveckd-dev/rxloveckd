@@ -3,6 +3,8 @@ import { LABELS, type MonthlySummary, type PatientSummary, type SessionUser } fr
 
 /** GitHub Pages build: no server, the API is answered in the browser with synthetic data. */
 export const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
+/** Static demo that saves into the trial Google Sheet instead of browser storage. */
+export const USES_SHEETS = STATIC_DEMO && !!import.meta.env.VITE_SHEETS_API_URL;
 
 export class ApiError extends Error {
   constructor(

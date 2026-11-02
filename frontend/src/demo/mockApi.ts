@@ -43,6 +43,10 @@ export class MockHttpError extends Error {
 }
 
 const KEY = 'loveckd-static-demo-v1';
+const SESSION_KEY = 'loveckd-static-demo-session';
+/** Apps Script web app (apps-script/Code.gs). When set, data lives in the Google Sheet, not the browser. */
+const SHEETS_URL: string = import.meta.env.VITE_SHEETS_API_URL ?? '';
+export const USES_SHEETS = SHEETS_URL !== '';
 const DAY = 86_400_000;
 const rules = DEFAULT_RULES;
 let seq = 0;
@@ -134,26 +138,101 @@ function seed(): Store {
 }
 
 // ---------------------------------------------------------------- persistence
+type Table = 'patients' | 'visits' | 'labs' | 'medications' | 'drps';
+const TABLES: Table[] = ['patients', 'visits', 'labs', 'medications', 'drps'];
+type Op = { type: 'insert' | 'update'; table: Table; row: { id: string } };
+let pending: Op[] = [];
+
+function readSession(): string | null {
+  try {
+    return localStorage.getItem(SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function load(): Store {
+  const s = seed();
+  s.session = readSession();
+  if (USES_SHEETS) return { ...s, patients: [], visits: [], labs: [], medications: [], drps: [] };
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as Store;
+    if (raw) return { ...(JSON.parse(raw) as Store), session: s.session };
   } catch {
     /* storage unavailable: fall back to a fresh in-memory demo */
   }
-  return seed();
+  return s;
 }
 let store = load();
+let loaded = !USES_SHEETS;
+
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(store));
+    if (store.session) localStorage.setItem(SESSION_KEY, store.session);
+    else localStorage.removeItem(SESSION_KEY);
+    if (!USES_SHEETS) localStorage.setItem(KEY, JSON.stringify(store));
   } catch {
     /* demo still works for this tab without persistence */
   }
 }
 
-export function resetDemo() {
-  store = seed();
+/** Every value comes back from the Sheet as text; restore numbers, booleans and empty values. */
+const NUMBERS: Partial<Record<Table, string[]>> = { labs: ['value'], visits: ['visitNo'] };
+const BOOLEANS: Partial<Record<Table, string[]>> = { visits: ['herbalOrPainkiller', 'dietControlled'] };
+function fromSheet(table: Table, row: Record<string, string>) {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (NUMBERS[table]?.includes(k)) out[k] = Number(v);
+    else if (BOOLEANS[table]?.includes(k)) out[k] = v.toUpperCase() === 'TRUE';
+    else out[k] = v === '' ? null : v;
+  }
+  return out;
+}
+
+async function sheetsPost(payload: unknown) {
+  // text/plain keeps this a "simple" request, so the browser sends no CORS preflight to Apps Script.
+  const res = await fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify(payload) });
+  const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+  if (!res.ok || !body?.ok) {
+    throw new MockHttpError(502, `บันทึกลง Google Sheets ไม่สำเร็จ${body?.error ? `: ${body.error}` : ''} กรุณาลองใหม่`);
+  }
+}
+
+async function ensureLoaded() {
+  if (loaded) return;
+  const res = await fetch(SHEETS_URL).catch(() => null);
+  const body = (await res?.json().catch(() => null)) as { ok?: boolean; data?: Record<Table, Record<string, string>[]> } | null;
+  if (!body?.ok || !body.data) throw new MockHttpError(502, 'เชื่อมต่อ Google Sheets ไม่สำเร็จ กรุณาลองใหม่');
+  const data = body.data;
+  if (data.patients.length === 0) {
+    // Empty Sheet: write the synthetic demo patients once so the trial has something to show.
+    const s = seed();
+    await sheetsPost({ ops: TABLES.flatMap((t) => (s[t] as { id: string }[]).map((row) => ({ type: 'insert', table: t, row }))) });
+    store = { ...s, session: store.session };
+  } else {
+    for (const t of TABLES) (store[t] as unknown[]) = data[t].map((r) => fromSheet(t, r));
+  }
+  loaded = true;
+}
+
+function insert<T extends Table>(table: T, row: Store[T][number]) {
+  (store[table] as Store[T][number][]).push(row);
+  pending.push({ type: 'insert', table, row });
+}
+
+function update<T extends Table>(table: T, row: Store[T][number]) {
+  pending.push({ type: 'update', table, row });
+}
+
+export async function resetDemo() {
+  if (USES_SHEETS) {
+    await sheetsPost({ reset: true });
+    loaded = false;
+    store = { ...store, patients: [], visits: [], labs: [], medications: [], drps: [] };
+    await ensureLoaded();
+  } else {
+    store = { ...seed(), session: store.session };
+  }
   save();
 }
 
@@ -269,7 +348,7 @@ const routes: [string, RegExp, Handler][] = [
     if (store.patients.some((p) => p.nationalId === d.nationalId)) throw new MockHttpError(409, 'เลขบัตรประชาชนนี้ลงทะเบียนแล้ว', 'nationalId');
     if (store.patients.some((p) => p.hn === d.hn)) throw new MockHttpError(409, 'HN นี้ลงทะเบียนแล้ว', 'hn');
     const p = { id: newId(), ...d, birthDate: d.birthDate.toISOString(), enrolledAt: d.enrolledAt.toISOString(), ckdCause: d.ckdCause ?? null, notes: d.notes ?? null, programStatus: 'active' };
-    store.patients.push(p);
+    insert('patients', p);
     return { patient: profile(p) };
   }],
   ['GET', /^\/patients\/([^/]+)$/, (m) => {
@@ -313,9 +392,9 @@ const routes: [string, RegExp, Handler][] = [
       aceiArbNoReason: d.aceiArbNoReason ?? null,
       pharmacistId: u.id,
     };
-    store.visits.push(v);
-    for (const l of labs) store.labs.push({ id: newId(), patientId: m[1]!, visitId: v.id, test: l.test, value: l.value, unit: l.unit, collectedAt: l.collectedAt.toISOString(), origin: 'user_entered', source: l.source });
-    for (const md of medications) store.medications.push({ id: newId(), patientId: m[1]!, visitId: v.id, drugName: md.drugName, strength: md.strength ?? null, directions: md.directions ?? null, drugClass: md.drugClass, status: 'active', createdAt: new Date().toISOString() });
+    insert('visits', v);
+    for (const l of labs) insert('labs', { id: newId(), patientId: m[1]!, visitId: v.id, test: l.test, value: l.value, unit: l.unit, collectedAt: l.collectedAt.toISOString(), origin: 'user_entered', source: l.source });
+    for (const md of medications) insert('medications', { id: newId(), patientId: m[1]!, visitId: v.id, drugName: md.drugName, strength: md.strength ?? null, directions: md.directions ?? null, drugClass: md.drugClass, status: 'active', createdAt: new Date().toISOString() });
     return { visit: v };
   }],
   ['POST', /^\/patients\/([^/]+)\/labs$/, (m, body) => {
@@ -323,7 +402,7 @@ const routes: [string, RegExp, Handler][] = [
     patientOr404(m[1]!);
     const l = labCreateSchema.parse(body);
     const lab = { id: newId(), patientId: m[1]!, visitId: null, test: l.test, value: l.value, unit: l.unit, collectedAt: l.collectedAt.toISOString(), origin: 'user_entered', source: l.source };
-    store.labs.push(lab);
+    insert('labs', lab);
     return { lab };
   }],
   ['GET', /^\/patients\/([^/]+)\/medications$/, (m) => {
@@ -336,7 +415,7 @@ const routes: [string, RegExp, Handler][] = [
     patientOr404(m[1]!);
     const d = medicationCreateSchema.parse(body);
     const med = { id: newId(), patientId: m[1]!, visitId: null, drugName: d.drugName, strength: d.strength ?? null, directions: d.directions ?? null, drugClass: d.drugClass, status: 'active', createdAt: new Date().toISOString() };
-    store.medications.push(med);
+    insert('medications', med);
     return { medication: med };
   }],
   ['PATCH', /^\/medications\/([^/]+)$/, (m, body) => {
@@ -345,6 +424,7 @@ const routes: [string, RegExp, Handler][] = [
     const med = store.medications.find((x) => x.id === m[1]);
     if (!med) throw new MockHttpError(404, 'ไม่พบรายการยา');
     med.status = status;
+    update('medications', med);
     return { medication: med };
   }],
   ['GET', /^\/patients\/([^/]+)\/drps$/, (m) => {
@@ -357,7 +437,7 @@ const routes: [string, RegExp, Handler][] = [
     patientOr404(m[1]!);
     const d = drpCreateSchema.parse(body);
     const drp = { id: newId(), patientId: m[1]!, visitId: d.visitId ?? null, recordedAt: new Date().toISOString(), category: d.category, description: d.description, drugs: d.drugs ?? null, severity: d.severity, recommendation: d.recommendation, prescriberDecision: 'pending', prescriberReason: null, decidedById: null, pharmacistId: u.id };
-    store.drps.push(drp);
+    insert('drps', drp);
     return { drp: drpView(drp) };
   }],
   ['PATCH', /^\/drps\/([^/]+)\/decision$/, (m, body) => {
@@ -366,6 +446,7 @@ const routes: [string, RegExp, Handler][] = [
     const drp = store.drps.find((x) => x.id === m[1]);
     if (!drp) throw new MockHttpError(404, 'ไม่พบ DRP');
     Object.assign(drp, { prescriberDecision: d.prescriberDecision, prescriberReason: d.prescriberReason ?? null, decidedById: u.id });
+    update('drps', drp);
     return { drp: drpView(drp) };
   }],
   ['GET', /^\/dashboard$/, () => {
@@ -399,8 +480,18 @@ export async function mockApi(path: string, method: string, body: unknown): Prom
   const [pathname = '', qs = ''] = path.split('?');
   const route = routes.find(([m, re]) => m === method && re.test(pathname));
   if (!route) throw new MockHttpError(404, 'ไม่พบข้อมูล');
+  if (!pathname.startsWith('/auth/')) await ensureLoaded();
+  pending = [];
   try {
     const result = route[2](pathname.match(route[1])!, body, new URLSearchParams(qs));
+    if (USES_SHEETS && pending.length) {
+      try {
+        await sheetsPost({ ops: pending });
+      } catch (err) {
+        loaded = false; // local copy may now differ from the Sheet; reload it on the next request
+        throw err;
+      }
+    }
     save();
     return JSON.parse(JSON.stringify(result));
   } catch (err) {

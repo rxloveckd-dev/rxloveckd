@@ -21,6 +21,22 @@ npm run dev                               # API :4000, เว็บ http://local
 บัญชีทดลอง (รหัสผ่าน `demo1234`): `pharm1`, `pharm2` (เภสัชกร), `super1` (หัวหน้าเภสัชกร),
 `admin1` (ผู้ดูแลระบบ ดูข้อมูลผู้ป่วยไม่ได้)
 
+## เวอร์ชันทดลองออนไลน์ (GitHub Pages + Google Sheets)
+
+ใช้สาธิตด้วยข้อมูลสมมติเท่านั้น หน้าเว็บคำนวณทุกอย่างในเบราว์เซอร์ และบันทึกข้อมูลลง Google Sheet ผ่าน Apps Script
+ลิงก์ Apps Script เปิดสาธารณะ ใครมีลิงก์ก็อ่าน/เขียน Sheet ได้ **ห้ามใส่ข้อมูลผู้ป่วยจริง**
+
+1. เปิด Google Sheet > ส่วนขยาย > Apps Script > วางโค้ดจาก `apps-script/Code.gs` > บันทึก > เลือกฟังก์ชัน `setup` > เรียกใช้
+2. การทำให้ใช้งานได้ > การทำให้ใช้งานได้รายการใหม่ > เว็บแอป (ดำเนินการในฐานะ: ฉัน, ผู้มีสิทธิ์เข้าถึง: ทุกคน) > คัดลอก URL
+3. Build และ deploy:
+   ```bash
+   set SHEETS_API_URL=https://script.google.com/macros/s/.../exec
+   npm run build:pages -w frontend
+   ```
+   แล้ว push โฟลเดอร์ `frontend/dist-pages` ขึ้น branch `gh-pages`
+
+ถ้าไม่ตั้ง `SHEETS_API_URL` เว็บจะเก็บข้อมูลในเบราว์เซอร์แทน
+
 ## ทดสอบ
 
 ```bash
