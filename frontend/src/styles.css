@@ -58,6 +58,9 @@ a { color: inherit; }
 .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 20px; }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 20px; }
+/* title + first name + last name always share one line */
+.name-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(90px, 140px) 1fr 1fr; gap: 14px 20px; }
+.name-row > * { min-width: 0; }
 
 /* ---------- buttons and fields */
 .btn { font: inherit; border: 1px solid var(--ink); background: var(--ink); color: #fff; padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block; }
@@ -392,3 +395,4 @@ td.num, th.num { text-align: right; }
 
 .btn.danger { color: var(--red); border-color: #e9b4b4; }
 .btn.danger:hover { background: var(--red-bg); }
+.row-actions { display: inline-flex; gap: 6px; flex-wrap: wrap; }

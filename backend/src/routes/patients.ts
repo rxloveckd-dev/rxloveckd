@@ -4,17 +4,22 @@ import {
   dischargeSchema,
   drpCreateSchema,
   drpDecisionSchema,
+  drpUpdateSchema,
   labCreateSchema,
+  labUpdateSchema,
   labHistory,
   medicationCreateSchema,
+  medicationUpdateSchema,
   patientCreateSchema,
   patientUpdateSchema,
   visitCreateSchema,
+  visitUpdateSchema,
   type ClinicalRules,
 } from '@rx/shared';
 import { prisma } from '../db';
 import { audit } from '../audit';
 import { CLINICAL, requireRole } from '../auth';
+import type { Prisma } from '@prisma/client';
 import { notFound } from '../errors';
 import { activeRules } from '../services/rules';
 import { listSummaries, STATUS_INCLUDE, toSummary } from '../services/patients';
@@ -91,6 +96,22 @@ export function patientsRouter(): Router {
     res.json({ patient: profileResponse(p, await activeRules()) });
   });
 
+  // Removes the patient and every record that belongs to them (supervisor only).
+  r.delete('/patients/:id', requireRole('supervisor'), async (req, res) => {
+    const id = String(req.params.id);
+    await findPatientOr404(id);
+    const where = { patientId: id };
+    await prisma.$transaction([
+      prisma.drp.deleteMany({ where }),
+      prisma.medication.deleteMany({ where }),
+      prisma.labResult.deleteMany({ where }),
+      prisma.visit.deleteMany({ where }),
+      prisma.patient.delete({ where: { id } }),
+    ]);
+    await audit(req, 'delete', 'patient', id);
+    res.json({ ok: true });
+  });
+
   // ---- discharge (จำหน่าย) and undo
   r.post('/patients/:id/discharge', async (req, res) => {
     await findPatientOr404(req.params.id);
@@ -128,6 +149,20 @@ export function patientsRouter(): Router {
     res.status(201).json({ lab });
   });
 
+  r.patch('/labs/:id', async (req, res) => {
+    if (!(await prisma.labResult.findUnique({ where: { id: req.params.id } }))) throw notFound('ผลแล็บ');
+    const lab = await prisma.labResult.update({ where: { id: req.params.id }, data: labUpdateSchema.parse(req.body) });
+    await audit(req, 'update', 'lab', lab.id);
+    res.json({ lab });
+  });
+
+  r.delete('/labs/:id', async (req, res) => {
+    if (!(await prisma.labResult.findUnique({ where: { id: req.params.id } }))) throw notFound('ผลแล็บ');
+    await prisma.labResult.delete({ where: { id: req.params.id } });
+    await audit(req, 'delete', 'lab', req.params.id);
+    res.json({ ok: true });
+  });
+
   // ---- visits (paper form replacement)
   r.get('/patients/:id/visits', async (req, res) => {
     await findPatientOr404(req.params.id);
@@ -157,6 +192,30 @@ export function patientsRouter(): Router {
     res.status(201).json({ visit });
   });
 
+  r.patch('/visits/:id', async (req, res) => {
+    if (!(await prisma.visit.findUnique({ where: { id: req.params.id } }))) throw notFound('การติดตาม');
+    const visit = await prisma.visit.update({ where: { id: req.params.id }, data: visitUpdateSchema.parse(req.body) });
+    await audit(req, 'update', 'visit', visit.id);
+    res.json({ visit });
+  });
+
+  /** Labs entered on the visit go with it; medicines and DRPs stay on the patient's record. */
+  r.delete('/visits/:id', async (req, res) => {
+    const visit = await prisma.visit.findUnique({ where: { id: req.params.id } });
+    if (!visit) throw notFound('การติดตาม');
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.labResult.deleteMany({ where: { visitId: visit.id } });
+      await tx.medication.updateMany({ where: { visitId: visit.id }, data: { visitId: null } });
+      await tx.drp.updateMany({ where: { visitId: visit.id }, data: { visitId: null } });
+      await tx.visit.delete({ where: { id: visit.id } });
+      // Keep visit numbers 1, 2, 3… (ascending, so each new number is already free).
+      const later = await tx.visit.findMany({ where: { patientId: visit.patientId, visitNo: { gt: visit.visitNo } }, orderBy: { visitNo: 'asc' } });
+      for (const v of later) await tx.visit.update({ where: { id: v.id }, data: { visitNo: v.visitNo - 1 } });
+    });
+    await audit(req, 'delete', 'visit', visit.id);
+    res.json({ ok: true });
+  });
+
   // ---- medications
   r.get('/patients/:id/medications', async (req, res) => {
     await findPatientOr404(req.params.id);
@@ -176,12 +235,19 @@ export function patientsRouter(): Router {
   });
 
   r.patch('/medications/:id', async (req, res) => {
-    const { status } = z.object({ status: z.enum(['active', 'stopped']) }).parse(req.body);
+    const data = medicationUpdateSchema.parse(req.body);
     const exists = await prisma.medication.findUnique({ where: { id: req.params.id } });
     if (!exists) throw notFound('รายการยา');
-    const med = await prisma.medication.update({ where: { id: req.params.id }, data: { status } });
+    const med = await prisma.medication.update({ where: { id: req.params.id }, data });
     await audit(req, 'update', 'medication', med.id);
     res.json({ medication: med });
+  });
+
+  r.delete('/medications/:id', async (req, res) => {
+    if (!(await prisma.medication.findUnique({ where: { id: req.params.id } }))) throw notFound('รายการยา');
+    await prisma.medication.delete({ where: { id: req.params.id } });
+    await audit(req, 'delete', 'medication', req.params.id);
+    res.json({ ok: true });
   });
 
   // ---- DRPs: recommendation and prescriber decision are separate fields (FR-011)
@@ -207,6 +273,20 @@ export function patientsRouter(): Router {
     const drp = await prisma.drp.create({ data: { ...data, patientId: req.params.id, pharmacistId: req.user!.id } });
     await audit(req, 'create', 'drp', drp.id);
     res.status(201).json({ drp: await drpView(drp.id) });
+  });
+
+  r.patch('/drps/:id', async (req, res) => {
+    await drpView(req.params.id);
+    await prisma.drp.update({ where: { id: req.params.id }, data: drpUpdateSchema.parse(req.body) });
+    await audit(req, 'update', 'drp', req.params.id);
+    res.json({ drp: await drpView(req.params.id) });
+  });
+
+  r.delete('/drps/:id', async (req, res) => {
+    await drpView(req.params.id);
+    await prisma.drp.delete({ where: { id: req.params.id } });
+    await audit(req, 'delete', 'drp', req.params.id);
+    res.json({ ok: true });
   });
 
   r.patch('/drps/:id/decision', async (req, res) => {

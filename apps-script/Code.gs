@@ -398,7 +398,7 @@ function toCells(name, row) {
   });
 }
 
-/** ops: [{ type: 'insert' | 'update', table, row }] — applied under a lock and audited. */
+/** ops: [{ type: 'insert' | 'update' | 'delete', table, row }] — applied under a lock and audited. */
 function writeOps(ops) {
   const user = requireUser(true);
   const lock = LockService.getScriptLock();
@@ -406,7 +406,17 @@ function writeOps(ops) {
   try {
     const ss = SpreadsheetApp.getActive();
     const inserts = {};
+    const deletes = {};
     (ops || []).forEach(function (op) {
+      if (op.type === 'delete') {
+        if (DATA_TABLES.indexOf(op.table) < 0) throw new Error('ตารางไม่ถูกต้อง');
+        if (op.table === 'patients' && user.role !== 'supervisor') {
+          audit(user.id, 'denied', 'patients', op.row.id, 'denied');
+          throw new Error('เฉพาะหัวหน้าเภสัชกรที่ลบผู้ป่วยได้');
+        }
+        (deletes[op.table] = deletes[op.table] || {})[op.row.id] = true;
+        return;
+      }
       if (DATA_TABLES.indexOf(op.table) < 0) throw new Error('ตารางไม่ถูกต้อง');
       if (op.type === 'insert') {
         (inserts[op.table] = inserts[op.table] || []).push(toCells(op.table, op.row));
@@ -418,12 +428,24 @@ function writeOps(ops) {
         sheet.getRange(idx + 2, 1, 1, TABLES[op.table].length).setValues([toCells(op.table, op.row)]);
       }
     });
+    // Delete bottom-up so the row numbers still to be deleted stay valid.
+    Object.keys(deletes).forEach(function (name) {
+      const sheet = ss.getSheetByName(name);
+      if (sheet.getLastRow() < 2) return;
+      const ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues();
+      for (let i = ids.length - 1; i >= 0; i--) {
+        if (deletes[name][ids[i][0]]) sheet.deleteRow(i + 2);
+      }
+    });
     Object.keys(inserts).forEach(function (name) {
       const sheet = ss.getSheetByName(name);
       const rows = inserts[name];
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, TABLES[name].length).setNumberFormat('@').setValues(rows);
     });
-    (ops || []).forEach(function (op) { audit(user.id, op.type === 'insert' ? 'create' : 'update', op.table, op.row.id, 'ok'); });
+    (ops || []).forEach(function (op) {
+      const action = op.type === 'insert' ? 'create' : op.type === 'delete' ? 'delete' : 'update';
+      audit(user.id, action, op.table, op.row.id, 'ok');
+    });
     return { ok: true };
   } finally {
     lock.releaseLock();

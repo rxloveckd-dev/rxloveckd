@@ -22,7 +22,7 @@ export const LABELS = {
     scr: 'Cr',
     hba1c: 'HbA1c',
     albumin: 'Albumin',
-    potassium: 'โพแทสเซียม (K)',
+    potassium: 'Potassium (K)',
     sbp: 'ความดันตัวบน',
     dbp: 'ความดันตัวล่าง',
   },

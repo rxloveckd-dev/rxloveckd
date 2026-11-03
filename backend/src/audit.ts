@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 import { prisma } from './db';
 
-export type AuditAction = 'view' | 'create' | 'update' | 'amend' | 'export' | 'login' | 'denied';
+export type AuditAction = 'view' | 'create' | 'update' | 'delete' | 'amend' | 'export' | 'login' | 'denied';
 
 /** Records who did what to which record; no clinical content is stored (FR-031). */
 export async function audit(

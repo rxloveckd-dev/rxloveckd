@@ -115,7 +115,7 @@ export function VisitNew() {
           </Field>
           <Field label="HbA1c (%)" htmlFor="a1c"><input id="a1c" inputMode="decimal" value={hba1c} onChange={(e) => setHba1c(e.target.value)} /></Field>
           <Field label="Albumin (mg/g)" htmlFor="alb"><input id="alb" inputMode="decimal" value={albumin} onChange={(e) => setAlbumin(e.target.value)} /></Field>
-          <Field label="โพแทสเซียม (mmol/L)" htmlFor="k"><input id="k" inputMode="decimal" value={potassium} onChange={(e) => setPotassium(e.target.value)} /></Field>
+          <Field label="Potassium (mmol/L)" htmlFor="k"><input id="k" inputMode="decimal" value={potassium} onChange={(e) => setPotassium(e.target.value)} /></Field>
         </div>
         <div className="grid-3" style={{ marginTop: 14 }}>
           <Field label="วันที่วัดความดัน" htmlFor="bpd"><input id="bpd" type="date" value={bpDate} onChange={(e) => setBpDate(e.target.value)} /></Field>

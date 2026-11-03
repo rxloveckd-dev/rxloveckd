@@ -120,7 +120,7 @@ export const usePatientList = <T,>(id: string, kind: 'visits' | 'labs' | 'medica
 export function usePatientMutation<TBody, TResult>(
   patientId: string | null,
   path: string | ((body: TBody) => string),
-  method: 'POST' | 'PATCH' = 'POST',
+  method: 'POST' | 'PATCH' | 'DELETE' = 'POST',
 ) {
   const qc = useQueryClient();
   return useMutation({

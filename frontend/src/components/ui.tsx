@@ -84,3 +84,36 @@ export function ErrorState({ error }: { error: unknown }) {
   const message = error instanceof ApiError ? error.message : 'โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่';
   return <div className="alert" role="alert">{message}</div>;
 }
+
+/** แก้ไข / ลบ buttons for one record; delete always asks first. */
+export function RowActions({
+  onEdit,
+  onDelete,
+  confirmText,
+  busy,
+}: {
+  onEdit?: () => void;
+  onDelete?: () => void;
+  confirmText: string;
+  busy?: boolean;
+}) {
+  return (
+    <span className="row-actions">
+      {onEdit && (
+        <button type="button" className="btn secondary small" onClick={onEdit} disabled={busy}>แก้ไข</button>
+      )}
+      {onDelete && (
+        <button
+          type="button"
+          className="btn secondary small danger"
+          disabled={busy}
+          onClick={() => {
+            if (window.confirm(confirmText)) onDelete();
+          }}
+        >
+          ลบ
+        </button>
+      )}
+    </span>
+  );
+}

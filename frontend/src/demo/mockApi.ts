@@ -12,15 +12,20 @@ import {
   URGENCY_ORDER,
   drpCreateSchema,
   drpDecisionSchema,
+  drpUpdateSchema,
   labCreateSchema,
+  labUpdateSchema,
   labHistory,
   loginSchema,
   maskNationalId,
   medicationCreateSchema,
+  medicationUpdateSchema,
   monthRange,
   patientCreateSchema,
+  patientUpdateSchema,
   summarizeMonth,
   visitCreateSchema,
+  visitUpdateSchema,
   type PatientSummary,
   type SessionUser,
 } from '@rx/shared';
@@ -167,7 +172,7 @@ function seed(): Store {
 // ---------------------------------------------------------------- persistence
 type Table = 'patients' | 'visits' | 'labs' | 'medications' | 'drps';
 const TABLES: Table[] = ['patients', 'visits', 'labs', 'medications', 'drps'];
-type Op = { type: 'insert' | 'update'; table: Table; row: { id: string } };
+type Op = { type: 'insert' | 'update' | 'delete'; table: Table; row: { id: string } };
 let pending: Op[] = [];
 
 function readSession(): string | null {
@@ -261,6 +266,21 @@ function insert<T extends Table>(table: T, row: Store[T][number]) {
 
 function update<T extends Table>(table: T, row: Store[T][number]) {
   pending.push({ type: 'update', table, row });
+}
+
+/** Removes every row of `table` matching `match`; returns how many were removed. */
+function remove<T extends Table>(table: T, match: (row: Store[T][number]) => boolean) {
+  const rows = store[table] as Store[T][number][];
+  const gone = rows.filter(match);
+  (store[table] as Store[T][number][]) = rows.filter((r) => !match(r));
+  for (const row of gone) pending.push({ type: 'delete', table, row: { id: row.id } });
+  return gone.length;
+}
+
+function findOr404<T extends Table>(table: T, id: string, what: string): Store[T][number] {
+  const row = (store[table] as Store[T][number][]).find((x) => x.id === id);
+  if (!row) throw new MockHttpError(404, `ไม่พบ${what}`);
+  return row;
 }
 
 export async function resetDemo() {
@@ -435,6 +455,28 @@ const routes: [string, RegExp, Handler][] = [
     insert('patients', p);
     return { patient: profile(p) };
   }],
+  ['PATCH', /^\/patients\/([^/]+)$/, (m, body) => {
+    clinical();
+    const p = patientOr404(m[1]!);
+    const d = patientUpdateSchema.parse(body);
+    if (d.hn && store.patients.some((x) => x.id !== p.id && x.hn === d.hn)) throw new MockHttpError(409, 'HN นี้ลงทะเบียนแล้ว', 'hn');
+    Object.assign(p, {
+      ...d,
+      ...(d.birthDate && { birthDate: d.birthDate.toISOString() }),
+      ...(d.enrolledAt && { enrolledAt: d.enrolledAt.toISOString() }),
+      ...('ckdCause' in d && { ckdCause: d.ckdCause ?? null }),
+      ...('notes' in d && { notes: d.notes ?? null }),
+    });
+    update('patients', p);
+    return { patient: profile(p) };
+  }],
+  ['DELETE', /^\/patients\/([^/]+)$/, (m) => {
+    if (clinical().role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะหัวหน้าเภสัชกรที่ลบผู้ป่วยได้');
+    const id = patientOr404(m[1]!).id;
+    for (const t of ['drps', 'medications', 'labs', 'visits'] as const) remove(t, (r) => r.patientId === id);
+    remove('patients', (r) => r.id === id);
+    return { ok: true };
+  }],
   ['POST', /^\/patients\/([^/]+)\/discharge$/, (m, body) => {
     clinical();
     const p = patientOr404(m[1]!);
@@ -504,6 +546,59 @@ const routes: [string, RegExp, Handler][] = [
     insert('labs', lab);
     return { lab };
   }],
+  ['PATCH', /^\/visits\/([^/]+)$/, (m, body) => {
+    clinical();
+    const v = findOr404('visits', m[1]!, 'การติดตาม');
+    const d = visitUpdateSchema.parse(body);
+    Object.assign(v, {
+      visitDate: d.visitDate.toISOString(),
+      medicationTaking: d.medicationTaking,
+      herbalOrPainkiller: d.herbalOrPainkiller,
+      herbalDetail: d.herbalDetail ?? null,
+      dietControlled: d.dietControlled,
+      seasoning: d.seasoning,
+      furtherAdjustments: d.furtherAdjustments ?? null,
+      nextAppointment: iso(d.nextAppointment),
+      aceiArb: d.aceiArb,
+      aceiArbNoReason: d.aceiArbNoReason ?? null,
+    });
+    update('visits', v);
+    return { visit: v };
+  }],
+  ['DELETE', /^\/visits\/([^/]+)$/, (m) => {
+    clinical();
+    const v = findOr404('visits', m[1]!, 'การติดตาม');
+    // Labs entered on the visit go with it; medicines and DRPs stay on the patient's record.
+    remove('labs', (l) => l.visitId === v.id);
+    for (const med of store.medications.filter((x) => x.visitId === v.id)) {
+      med.visitId = null;
+      update('medications', med);
+    }
+    for (const drp of store.drps.filter((x) => x.visitId === v.id)) {
+      drp.visitId = null;
+      update('drps', drp);
+    }
+    remove('visits', (x) => x.id === v.id);
+    for (const later of store.visits.filter((x) => x.patientId === v.patientId && x.visitNo > v.visitNo)) {
+      later.visitNo -= 1;
+      update('visits', later);
+    }
+    return { ok: true };
+  }],
+  ['PATCH', /^\/labs\/([^/]+)$/, (m, body) => {
+    clinical();
+    const lab = findOr404('labs', m[1]!, 'ผลแล็บ');
+    const d = labUpdateSchema.parse(body);
+    Object.assign(lab, { test: d.test, value: d.value, unit: d.unit, collectedAt: d.collectedAt.toISOString(), source: d.source });
+    update('labs', lab);
+    return { lab };
+  }],
+  ['DELETE', /^\/labs\/([^/]+)$/, (m) => {
+    clinical();
+    findOr404('labs', m[1]!, 'ผลแล็บ');
+    remove('labs', (x) => x.id === m[1]);
+    return { ok: true };
+  }],
   ['GET', /^\/patients\/([^/]+)\/medications$/, (m) => {
     clinical();
     patientOr404(m[1]!);
@@ -519,12 +614,21 @@ const routes: [string, RegExp, Handler][] = [
   }],
   ['PATCH', /^\/medications\/([^/]+)$/, (m, body) => {
     clinical();
-    const { status } = z.object({ status: z.enum(['active', 'stopped']) }).parse(body);
-    const med = store.medications.find((x) => x.id === m[1]);
-    if (!med) throw new MockHttpError(404, 'ไม่พบรายการยา');
-    med.status = status;
+    const med = findOr404('medications', m[1]!, 'รายการยา');
+    const d = medicationUpdateSchema.parse(body);
+    if (d.drugName !== undefined) med.drugName = d.drugName;
+    if ('strength' in d) med.strength = d.strength ?? null;
+    if ('directions' in d) med.directions = d.directions ?? null;
+    if (d.drugClass) med.drugClass = d.drugClass;
+    if (d.status) med.status = d.status;
     update('medications', med);
     return { medication: med };
+  }],
+  ['DELETE', /^\/medications\/([^/]+)$/, (m) => {
+    clinical();
+    findOr404('medications', m[1]!, 'รายการยา');
+    remove('medications', (x) => x.id === m[1]);
+    return { ok: true };
   }],
   ['GET', /^\/patients\/([^/]+)\/drps$/, (m) => {
     clinical();
@@ -538,6 +642,20 @@ const routes: [string, RegExp, Handler][] = [
     const drp = { id: newId(), patientId: m[1]!, visitId: d.visitId ?? null, recordedAt: new Date().toISOString(), category: d.category, description: d.description, drugs: d.drugs ?? null, severity: d.severity, recommendation: d.recommendation, prescriberDecision: 'pending', prescriberReason: null, decidedById: null, pharmacistId: u.id };
     insert('drps', drp);
     return { drp: drpView(drp) };
+  }],
+  ['PATCH', /^\/drps\/([^/]+)$/, (m, body) => {
+    clinical();
+    const drp = findOr404('drps', m[1]!, 'DRP');
+    const d = drpUpdateSchema.parse(body);
+    Object.assign(drp, { category: d.category, description: d.description, drugs: d.drugs ?? null, severity: d.severity, recommendation: d.recommendation });
+    update('drps', drp);
+    return { drp: drpView(drp) };
+  }],
+  ['DELETE', /^\/drps\/([^/]+)$/, (m) => {
+    clinical();
+    findOr404('drps', m[1]!, 'DRP');
+    remove('drps', (x) => x.id === m[1]);
+    return { ok: true };
   }],
   ['PATCH', /^\/drps\/([^/]+)\/decision$/, (m, body) => {
     const u = clinical();

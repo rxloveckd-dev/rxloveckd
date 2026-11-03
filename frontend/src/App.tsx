@@ -6,7 +6,7 @@ import { Loading } from './components/ui';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Patients } from './pages/Patients';
-import { PatientNew } from './pages/PatientNew';
+import { PatientEdit, PatientNew } from './pages/PatientNew';
 import { PatientProfile } from './pages/PatientProfile';
 import { VisitNew } from './pages/VisitNew';
 import { Reports } from './pages/Reports';
@@ -111,6 +111,7 @@ export function App() {
               <Route path="/patients" element={<Patients />} />
               <Route path="/patients/new" element={<PatientNew />} />
               <Route path="/patients/:id" element={<PatientProfile />} />
+              <Route path="/patients/:id/edit" element={<PatientEdit />} />
               <Route path="/patients/:id/visits/new" element={<VisitNew />} />
               <Route path="/reports" element={<Reports />} />
               {canManageUsers && <Route path="/users" element={<Users />} />}
