@@ -61,7 +61,7 @@ model Visit {
   visitDate              DateTime
   medicationTaking       String // correct | incorrect
   medicationTakingDetail String? // what was wrong, when incorrect
-  leftoverMeds           String? // ยาเหลือ
+  leftoverMeds           String? // รายการยาที่เหลือ: JSON [{ drugName, strengthMg, remaining }]
   herbalOrPainkiller     Boolean
   herbalDetail           String?
   dietControlled         Boolean
@@ -71,6 +71,7 @@ model Visit {
   furtherAdjustments     String?
   nextAppointment        DateTime?
   aceiArb                String? // yes | no (null for visits recorded before this field existed)
+  aceiArbDrug            String? // enalapril | losartan, when aceiArb = yes
   aceiArbNoReason        String?
   pharmacistId           String
   createdAt              DateTime  @default(now())

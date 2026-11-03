@@ -37,6 +37,7 @@ export const LABELS = {
   },
   medicationTaking: { correct: 'ถูกต้อง', incorrect: 'ไม่ถูกต้อง' },
   aceiArb: { yes: 'มี', no: 'ไม่มี' },
+  aceiArbDrug: { enalapril: 'Enalapril', losartan: 'Losartan' },
   seasoning: { reduce_needed: 'ควรปรับลด', adjusted: 'ปรับแล้ว' },
   drugClass: {
     acei: 'ACEI',

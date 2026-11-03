@@ -5,6 +5,7 @@ import { ApiError, usePatient, usePatientMutation } from '../api';
 import { Choice, ErrorState, Field, Loading, Section } from '../components/ui';
 import { num, pct, todayIso } from '../format';
 import { Icon } from '../components/Icon';
+import { LeftoverEditor, leftoverPayload, type LeftoverRow } from '../components/LeftoverEditor';
 
 interface MedDraft {
   drugName: string;
@@ -35,7 +36,8 @@ export function VisitNew() {
   const [aceiArbNoReason, setAceiArbNoReason] = useState('');
   const [taking, setTaking] = useState<'' | 'correct' | 'incorrect'>('');
   const [takingDetail, setTakingDetail] = useState('');
-  const [leftover, setLeftover] = useState('');
+  const [leftovers, setLeftovers] = useState<LeftoverRow[]>([]);
+  const [aceiArbDrug, setAceiArbDrug] = useState<'' | 'enalapril' | 'losartan'>('');
   const [dietDetail, setDietDetail] = useState('');
   const [seasoningDetail, setSeasoningDetail] = useState('');
   const [herbal, setHerbal] = useState<'' | 'yes' | 'no'>('');
@@ -69,7 +71,7 @@ export function VisitNew() {
       visitDate,
       medicationTaking: taking || undefined,
       medicationTakingDetail: taking === 'incorrect' ? takingDetail || null : null,
-      leftoverMeds: leftover || null,
+      leftoverMeds: leftoverPayload(leftovers),
       herbalOrPainkiller: herbal === '' ? undefined : herbal === 'yes',
       herbalDetail: herbal === 'yes' ? herbalDetail : null,
       dietControlled: diet === '' ? undefined : diet === 'yes',
@@ -80,13 +82,14 @@ export function VisitNew() {
       nextAppointment: next || null,
       aceiArb: aceiArb || undefined,
       aceiArbNoReason: aceiArb === 'no' ? aceiArbNoReason : null,
+      aceiArbDrug: aceiArb === 'yes' ? aceiArbDrug || null : null,
       labs,
       medications: meds.filter((m) => m.drugName.trim()),
     };
     const parsed = visitCreateSchema.safeParse(body);
     if (!parsed.success) {
       const specific = parsed.error.issues.find((i) =>
-        ['nextAppointment', 'aceiArb', 'aceiArbNoReason'].includes(String(i.path[0])),
+        ['nextAppointment', 'aceiArb', 'aceiArbNoReason', 'aceiArbDrug', 'leftoverMeds'].includes(String(i.path[0])),
       );
       setError(specific?.message ?? 'กรุณาเลือกให้ครบทุกข้อในส่วน Note (การกินยา ยาสมุนไพร อาหาร เครื่องปรุง)');
       return;
@@ -143,6 +146,11 @@ export function VisitNew() {
           <Field label="ยากลุ่ม ACEI/ARB">
             <Choice name="aceiArb" value={aceiArb} options={[['yes', 'มี'], ['no', 'ไม่มี']]} onChange={setAceiArb} />
           </Field>
+          {aceiArb === 'yes' && (
+            <Field label="ยาที่ใช้ (เลือก 1 ชนิด)">
+              <Choice name="aceiArbDrug" value={aceiArbDrug} options={[['enalapril', 'Enalapril'], ['losartan', 'Losartan']]} onChange={setAceiArbDrug} />
+            </Field>
+          )}
           {aceiArb === 'no' && (
             <Field label="ไม่มีเพราะ" htmlFor="anr">
               <input id="anr" value={aceiArbNoReason} onChange={(e) => setAceiArbNoReason(e.target.value)} placeholder="เช่น โพแทสเซียมสูง แพทย์หยุดยา ไม่มีข้อบ่งใช้" />
@@ -162,6 +170,7 @@ export function VisitNew() {
             </Field>
           </div>
         ))}
+        <LeftoverEditor idPrefix="lo" rows={leftovers} onChange={setLeftovers} />
       </Section>
 
       <Section title="Note">
@@ -181,9 +190,6 @@ export function VisitNew() {
           <Field label="เครื่องปรุง">
             <Choice name="seasoning" value={seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับแล้ว']]} onChange={setSeasoning} />
             {seasoning === 'reduce_needed' && <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ เช่น น้ำปลา ผงชูรส" value={seasoningDetail} onChange={(e) => setSeasoningDetail(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />}
-          </Field>
-          <Field label="ยาเหลือ" htmlFor="lo">
-            <input id="lo" value={leftover} onChange={(e) => setLeftover(e.target.value)} placeholder="ระบุชื่อยาและจำนวนที่เหลือ (ถ้ามี)" />
           </Field>
         </div>
         <div className="grid-2" style={{ marginTop: 14 }}>

@@ -36,7 +36,7 @@ interface Store {
   session: string | null;
   patients: { id: string; nationalId: string; hn: string; title: string; firstName: string; lastName: string; birthDate: string; sex: 'male' | 'female'; ckdCause: string | null; programStatus: string; enrolledAt: string; notes: string | null; dischargeCode?: string | null; dischargeDate?: string | null; dischargeNote?: string | null }[];
   labs: { id: string; patientId: string; visitId: string | null; test: string; value: number; unit: string; collectedAt: string; origin: string; source: string }[];
-  visits: { id: string; patientId: string; visitNo: number; visitDate: string; medicationTaking: string; herbalOrPainkiller: boolean; herbalDetail: string | null; dietControlled: boolean; seasoning: string; furtherAdjustments: string | null; nextAppointment: string | null; aceiArb: string | null; aceiArbNoReason: string | null; pharmacistId: string; medicationTakingDetail?: string | null; leftoverMeds?: string | null; dietDetail?: string | null; seasoningDetail?: string | null }[];
+  visits: { id: string; patientId: string; visitNo: number; visitDate: string; medicationTaking: string; herbalOrPainkiller: boolean; herbalDetail: string | null; dietControlled: boolean; seasoning: string; furtherAdjustments: string | null; nextAppointment: string | null; aceiArb: string | null; aceiArbNoReason: string | null; pharmacistId: string; medicationTakingDetail?: string | null; leftoverMeds?: string | null; dietDetail?: string | null; seasoningDetail?: string | null; aceiArbDrug?: string | null }[];
   medications: { id: string; patientId: string; visitId: string | null; drugName: string; strength: string | null; directions: string | null; drugClass: string; status: string; createdAt: string }[];
   drps: { id: string; patientId: string; visitId: string | null; recordedAt: string; category: string; description: string; drugs: string | null; severity: string; recommendation: string; prescriberDecision: string; prescriberReason: string | null; decidedById: string | null; pharmacistId: string }[];
 }
@@ -51,7 +51,7 @@ export class MockHttpError extends Error {
   }
 }
 
-const KEY = 'loveckd-static-demo-v2'; // v2: 9-digit HN, multi-cause CKD
+const KEY = 'loveckd-static-demo-v3'; // v3: ACEI/ARB drug, structured leftover medicines
 const SESSION_KEY = 'loveckd-static-demo-session';
 /** Apps Script web app (apps-script/Code.gs). When set, data lives in the Google Sheet, not the browser. */
 const SHEETS_URL: string = import.meta.env.VITE_SHEETS_API_URL ?? '';
@@ -144,8 +144,8 @@ function seed(): Store {
     const v2 = { id: `v${i}b`, date: day(-40 + (i % 9)) };
     const noAcei = i % 6 === 5;
     s.visits.push(
-      { id: v1.id, patientId: pid, visitNo: 1, visitDate: v1.date, medicationTaking: 'correct', herbalOrPainkiller: false, herbalDetail: null, dietControlled: rand() < 0.6, seasoning: 'reduce_needed', furtherAdjustments: 'ลดเค็ม ทบทวนการกินยา', nextAppointment: v2.date, aceiArb: 'yes', aceiArbNoReason: null, pharmacistId: ph },
-      { id: v2.id, patientId: pid, visitNo: 2, visitDate: v2.date, medicationTaking: incorrect ? 'incorrect' : 'correct', herbalOrPainkiller: herbal, herbalDetail: herbal ? 'ยาแก้ปวดกลุ่ม NSAID ซื้อจากร้านขายยา' : null, dietControlled: rand() < 0.7, seasoning: rand() < 0.5 ? 'adjusted' : 'reduce_needed', furtherAdjustments: incorrect ? 'สอนวิธีกินยาความดันใหม่' : null, nextAppointment: day(appt), aceiArb: noAcei ? 'no' : 'yes', aceiArbNoReason: noAcei ? 'โพแทสเซียมสูง แพทย์หยุดยาไว้ก่อน' : null, pharmacistId: ph },
+      { id: v1.id, patientId: pid, visitNo: 1, visitDate: v1.date, medicationTaking: 'correct', herbalOrPainkiller: false, herbalDetail: null, dietControlled: rand() < 0.6, seasoning: 'reduce_needed', furtherAdjustments: 'ลดเค็ม ทบทวนการกินยา', nextAppointment: v2.date, aceiArb: 'yes', aceiArbDrug: i % 2 ? 'losartan' : 'enalapril', aceiArbNoReason: null, pharmacistId: ph },
+      { id: v2.id, patientId: pid, visitNo: 2, visitDate: v2.date, medicationTaking: incorrect ? 'incorrect' : 'correct', herbalOrPainkiller: herbal, herbalDetail: herbal ? 'ยาแก้ปวดกลุ่ม NSAID ซื้อจากร้านขายยา' : null, dietControlled: rand() < 0.7, seasoning: rand() < 0.5 ? 'adjusted' : 'reduce_needed', furtherAdjustments: incorrect ? 'สอนวิธีกินยาความดันใหม่' : null, nextAppointment: day(appt), aceiArb: noAcei ? 'no' : 'yes', aceiArbDrug: noAcei ? null : i % 2 ? 'losartan' : 'enalapril', aceiArbNoReason: noAcei ? 'โพแทสเซียมสูง แพทย์หยุดยาไว้ก่อน' : null, pharmacistId: ph },
     );
     for (const [vid, vdate, g] of [[v1.id, v1.date, prevGfr], [v2.id, v2.date, gfr]] as const) {
       const at = new Date(new Date(vdate).getTime() - 3 * DAY).toISOString();
@@ -535,6 +535,7 @@ const routes: [string, RegExp, Handler][] = [
       nextAppointment: iso(d.nextAppointment),
       aceiArb: d.aceiArb,
       aceiArbNoReason: d.aceiArbNoReason ?? null,
+      aceiArbDrug: d.aceiArbDrug ?? null,
       pharmacistId: u.id,
     };
     insert('visits', v);
@@ -569,6 +570,7 @@ const routes: [string, RegExp, Handler][] = [
       nextAppointment: iso(d.nextAppointment),
       aceiArb: d.aceiArb,
       aceiArbNoReason: d.aceiArbNoReason ?? null,
+      aceiArbDrug: d.aceiArbDrug ?? null,
     });
     update('visits', v);
     return { visit: v };

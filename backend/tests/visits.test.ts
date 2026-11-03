@@ -13,6 +13,7 @@ const visitBody = (overrides: Record<string, unknown> = {}) => ({
   furtherAdjustments: 'ทบทวนวิธีกินยา',
   nextAppointment: '2026-11-05',
   aceiArb: 'yes',
+  aceiArbDrug: 'enalapril',
   labs: [{ test: 'gfr', value: 42, unit: 'mL/min/1.73m²', collectedAt: '2026-09-28' }],
   medications: [{ drugName: 'Enalapril', strength: '5 mg', directions: '1 เม็ด เช้า', drugClass: 'acei' }],
   ...overrides,

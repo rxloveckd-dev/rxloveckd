@@ -9,6 +9,7 @@ import {
   LABELS,
   labUpdateSchema,
   medicationCreateSchema,
+  parseLeftovers,
   SEVERITY,
   visitUpdateSchema,
   type DischargeCode,
@@ -17,6 +18,7 @@ import { ApiError, useMe, usePatient, usePatientList, usePatientMutation, type P
 import { Choice, Empty, ErrorState, Field, Loading, RowActions, Section, Stage, Urgency } from '../components/ui';
 import { num, pct, thDate, todayIso } from '../format';
 import { Icon } from '../components/Icon';
+import { LeftoverEditor, leftoverPayload, leftoverRowsFrom, leftoverText } from '../components/LeftoverEditor';
 
 interface VisitRow {
   id: string;
@@ -35,6 +37,7 @@ interface VisitRow {
   nextAppointment: string | null;
   aceiArb: 'yes' | 'no' | null;
   aceiArbNoReason: string | null;
+  aceiArbDrug?: 'enalapril' | 'losartan' | null;
   pharmacistName: string;
 }
 interface LabRow {
@@ -89,9 +92,10 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
     visitDate: visit.visitDate.slice(0, 10),
     aceiArb: (visit.aceiArb ?? '') as '' | 'yes' | 'no',
     aceiArbNoReason: visit.aceiArbNoReason ?? '',
+    aceiArbDrug: (visit.aceiArbDrug ?? '') as '' | 'enalapril' | 'losartan',
     medicationTaking: visit.medicationTaking,
     medicationTakingDetail: visit.medicationTakingDetail ?? '',
-    leftoverMeds: visit.leftoverMeds ?? '',
+    leftovers: leftoverRowsFrom(visit.leftoverMeds),
     dietDetail: visit.dietDetail ?? '',
     seasoningDetail: visit.seasoningDetail ?? '',
     herbal: visit.herbalOrPainkiller ? 'yes' : 'no',
@@ -110,7 +114,7 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
       visitDate: f.visitDate,
       medicationTaking: f.medicationTaking,
       medicationTakingDetail: f.medicationTakingDetail || null,
-      leftoverMeds: f.leftoverMeds || null,
+      leftoverMeds: leftoverPayload(f.leftovers),
       herbalOrPainkiller: f.herbal === 'yes',
       herbalDetail: f.herbal === 'yes' ? f.herbalDetail : null,
       dietControlled: f.diet === 'yes',
@@ -121,6 +125,7 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
       nextAppointment: f.nextAppointment || null,
       aceiArb: f.aceiArb || undefined,
       aceiArbNoReason: f.aceiArb === 'no' ? f.aceiArbNoReason : null,
+      aceiArbDrug: f.aceiArb === 'yes' ? f.aceiArbDrug || null : null,
     };
     const parsed = visitUpdateSchema.safeParse(body);
     if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ครบ');
@@ -144,6 +149,11 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
         </Field>
         <Field label="ยากลุ่ม ACEI/ARB">
           <Choice name={`acei-${visit.id}`} value={f.aceiArb} options={[['yes', 'มี'], ['no', 'ไม่มี']]} onChange={set('aceiArb')} />
+          {f.aceiArb === 'yes' && (
+            <div style={{ marginTop: 6 }}>
+              <Choice name={`aceid-${visit.id}`} value={f.aceiArbDrug} options={[['enalapril', 'Enalapril'], ['losartan', 'Losartan']]} onChange={set('aceiArbDrug')} />
+            </div>
+          )}
           {f.aceiArb === 'no' && (
             <input aria-label="ไม่มีเพราะ" placeholder="ไม่มีเพราะ" value={f.aceiArbNoReason} onChange={(e) => set('aceiArbNoReason')(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />
           )}
@@ -172,13 +182,11 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
             <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ" value={f.seasoningDetail} onChange={(e) => set('seasoningDetail')(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />
           )}
         </Field>
-        <Field label="ยาเหลือ" htmlFor={`lo-${visit.id}`}>
-          <input id={`lo-${visit.id}`} value={f.leftoverMeds} onChange={(e) => set('leftoverMeds')(e.target.value)} placeholder="ชื่อยาและจำนวนที่เหลือ" />
-        </Field>
         <Field label="สิ่งที่ต้องปรับเพิ่ม" htmlFor={`fu-${visit.id}`}>
           <textarea id={`fu-${visit.id}`} value={f.furtherAdjustments} onChange={(e) => set('furtherAdjustments')(e.target.value)} />
         </Field>
       </div>
+      <LeftoverEditor idPrefix={`lo-${visit.id}`} rows={f.leftovers} onChange={set('leftovers')} />
       <FormButtons busy={save.isPending} error={error} onCancel={onDone} />
     </form>
   );
@@ -191,6 +199,18 @@ function FormButtons({ busy, error, onCancel, label = 'บันทึกกา�
       {onCancel && <button type="button" className="btn secondary small" onClick={onCancel}><Icon name="x" />ยกเลิก</button>}
       {error && <span className="down">{error}</span>}
     </div>
+  );
+}
+
+/** รายการยาที่เหลือ as short lines; text saved before the list existed is shown as is. */
+function LeftoverList({ stored }: { stored: string | null | undefined }) {
+  const { items, legacy } = parseLeftovers(stored);
+  if (legacy) return <>{legacy}</>;
+  if (!items.length) return <>–</>;
+  return (
+    <ul style={{ margin: 0, paddingLeft: 18 }}>
+      {items.map((i, n) => <li key={n}>{leftoverText(i)}</li>)}
+    </ul>
   );
 }
 
@@ -234,6 +254,7 @@ function Visits({ id }: { id: string }) {
                 <dt className="muted">ยากลุ่ม ACEI/ARB</dt>
                 <dd style={{ margin: 0 }}>
                   {v.aceiArb ? LABELS.aceiArb[v.aceiArb] : '–'}
+                  {v.aceiArb === 'yes' && v.aceiArbDrug ? ` (${LABELS.aceiArbDrug[v.aceiArbDrug]})` : ''}
                   {v.aceiArb === 'no' && v.aceiArbNoReason ? ` เพราะ${v.aceiArbNoReason}` : ''}
                 </dd>
                 <dt className="muted">การกินยา</dt>
@@ -241,8 +262,8 @@ function Visits({ id }: { id: string }) {
                   {LABELS.medicationTaking[v.medicationTaking]}
                   {v.medicationTaking === 'incorrect' && v.medicationTakingDetail ? `: ${v.medicationTakingDetail}` : ''}
                 </dd>
-                <dt className="muted">ยาเหลือ</dt>
-                <dd style={{ margin: 0 }}>{v.leftoverMeds || '–'}</dd>
+                <dt className="muted">รายการยาที่เหลือ</dt>
+                <dd style={{ margin: 0 }}><LeftoverList stored={v.leftoverMeds} /></dd>
                 <dt className="muted">ยาสมุนไพร/ยาแก้ปวด</dt>
                 <dd style={{ margin: 0 }} className={v.herbalOrPainkiller ? 'down' : ''}>
                   {v.herbalOrPainkiller ? `กิน${v.herbalDetail ? `: ${v.herbalDetail}` : ''}` : 'ไม่กิน'}

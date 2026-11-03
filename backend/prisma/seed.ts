@@ -115,6 +115,7 @@ async function main() {
         furtherAdjustments: 'ลดเค็ม ทบทวนการกินยา',
         nextAppointment: visit2,
         aceiArb: 'yes',
+        aceiArbDrug: i % 2 ? 'losartan' : 'enalapril',
         pharmacistId: pharmacist.id,
       },
     });
@@ -132,6 +133,7 @@ async function main() {
         furtherAdjustments: incorrect ? 'สอนวิธีกินยาความดันใหม่' : null,
         nextAppointment: daysFromToday(apptOffset),
         aceiArb: noAceiArb ? 'no' : 'yes',
+        aceiArbDrug: noAceiArb ? null : i % 2 ? 'losartan' : 'enalapril',
         aceiArbNoReason: noAceiArb ? 'โพแทสเซียมสูง แพทย์หยุดยาไว้ก่อน' : null,
         pharmacistId: pharmacist.id,
       },

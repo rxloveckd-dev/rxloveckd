@@ -12,10 +12,13 @@ const visitBody = (overrides: Record<string, unknown> = {}) => ({
   seasoning: 'adjusted',
   nextAppointment: '2026-11-05',
   aceiArb: 'yes',
+  aceiArbDrug: 'enalapril',
   labs: [{ test: 'gfr', value: 42, unit: 'mL/min/1.73m²', collectedAt: '2026-09-28' }],
   medications: [{ drugName: 'Enalapril', strength: '5 mg', directions: '1 เม็ด เช้า', drugClass: 'acei' }],
   ...overrides,
 });
+const LEFTOVER = [{ drugName: 'Amlodipine', strengthMg: '10', remaining: 12 }];
+const LEFTOVER_JSON = JSON.stringify(LEFTOVER);
 const drpBody = { category: 'adherence', severity: 'medium', description: 'ลืมกินยา', recommendation: 'ใช้กล่องแบ่งยา' };
 
 async function setup() {
@@ -109,19 +112,19 @@ describe('edit and delete', () => {
       .post(`/api/patients/${id}/visits`)
       .send(visitBody({
         medicationTaking: 'incorrect', medicationTakingDetail: 'ลืมกินยามื้อเย็น',
-        leftoverMeds: 'Amlodipine 10 เม็ด',
+        leftoverMeds: LEFTOVER,
         dietControlled: false, dietDetail: 'กินของหวาน',
         seasoning: 'reduce_needed', seasoningDetail: 'น้ำปลา',
       }))
       .expect(201);
-    expect(created.body.visit).toMatchObject({ medicationTakingDetail: 'ลืมกินยามื้อเย็น', leftoverMeds: 'Amlodipine 10 เม็ด', dietDetail: 'กินของหวาน', seasoningDetail: 'น้ำปลา' });
+    expect(created.body.visit).toMatchObject({ medicationTakingDetail: 'ลืมกินยามื้อเย็น', leftoverMeds: LEFTOVER_JSON, dietDetail: 'กินของหวาน', seasoningDetail: 'น้ำปลา' });
 
     const { labs: _l, medications: _m, ...fields } = visitBody();
     const edited = await pharm
       .patch(`/api/visits/${created.body.visit.id}`)
-      .send({ ...fields, medicationTakingDetail: 'ลืมกินยามื้อเย็น', dietDetail: 'กินของหวาน', seasoningDetail: 'น้ำปลา', leftoverMeds: 'Amlodipine 10 เม็ด' })
+      .send({ ...fields, medicationTakingDetail: 'ลืมกินยามื้อเย็น', dietDetail: 'กินของหวาน', seasoningDetail: 'น้ำปลา', leftoverMeds: LEFTOVER })
       .expect(200);
-    expect(edited.body.visit).toMatchObject({ medicationTakingDetail: null, dietDetail: null, seasoningDetail: null, leftoverMeds: 'Amlodipine 10 เม็ด' });
+    expect(edited.body.visit).toMatchObject({ medicationTakingDetail: null, dietDetail: null, seasoningDetail: null, leftoverMeds: LEFTOVER_JSON });
   });
 
   it('expands the HN shorthand and rejects an HN that is not 9 digits', async () => {
@@ -131,6 +134,25 @@ describe('edit and delete', () => {
     const bad = await pharm.post('/api/patients').send(patientBody({ hn: '4500070' }));
     expect(bad.status).toBe(400);
     expect(bad.body.error.field).toBe('hn');
+  });
+
+  it('requires the ACEI/ARB drug when the patient has one, and checks leftover rows', async () => {
+    const { pharm, id } = await setup();
+    const noDrug = await pharm.post(`/api/patients/${id}/visits`).send(visitBody({ aceiArbDrug: null }));
+    expect(noDrug.status).toBe(400);
+    expect(noDrug.body.error.field).toBe('aceiArbDrug');
+
+    const badCount = await pharm
+      .post(`/api/patients/${id}/visits`)
+      .send(visitBody({ leftoverMeds: [{ drugName: 'Amlodipine', strengthMg: '10', remaining: 'สิบ' }] }));
+    expect(badCount.status).toBe(400);
+    expect(badCount.body.error.field).toBe('leftoverMeds.0.remaining');
+
+    const off = await pharm
+      .post(`/api/patients/${id}/visits`)
+      .send(visitBody({ aceiArb: 'no', aceiArbNoReason: 'โพแทสเซียมสูง', aceiArbDrug: 'losartan' }))
+      .expect(201);
+    expect(off.body.visit.aceiArbDrug).toBeNull();
   });
 
   it('returns 404 for records that do not exist', async () => {

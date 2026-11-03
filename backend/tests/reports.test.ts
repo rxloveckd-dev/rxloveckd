@@ -15,6 +15,7 @@ describe('dashboard and monthly report (US5, US6)', () => {
       dietControlled: false,
       seasoning: 'reduce_needed',
       aceiArb: 'yes',
+      aceiArbDrug: 'enalapril',
       labs: [],
       medications: [],
     };

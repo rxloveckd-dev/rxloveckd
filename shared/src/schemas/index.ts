@@ -11,6 +11,7 @@ export const DISCHARGE_CODES = ['01', '02', '03', '04', '05', '06', '07', '08', 
 export type DischargeCode = (typeof DISCHARGE_CODES)[number];
 export const LAB_TESTS = ['gfr', 'scr', 'hba1c', 'albumin', 'potassium', 'sbp', 'dbp'] as const;
 export const ACEI_ARB = ['yes', 'no'] as const;
+export const ACEI_ARB_DRUGS = ['enalapril', 'losartan'] as const;
 export const MEDICATION_TAKING = ['correct', 'incorrect'] as const;
 export const SEASONING = ['reduce_needed', 'adjusted'] as const;
 export const DRUG_CLASS = ['acei', 'arb', 'nsaid', 'diabetes', 'other_antihypertensive', 'diuretic', 'other'] as const;
@@ -83,11 +84,45 @@ export const medicationCreateSchema = z.object({
 });
 export type MedicationCreate = z.infer<typeof medicationCreateSchema>;
 
+/** One row of รายการยาที่เหลือ: drug, strength in mg, tablets left. */
+export const leftoverItemSchema = z.object({
+  drugName: z.string().trim().min(1, 'กรุณากรอกชื่อยาที่เหลือ').max(200),
+  strengthMg: z.string().trim().max(30).optional().nullable(),
+  remaining: z.coerce
+    .number({ invalid_type_error: 'จำนวนเม็ดที่เหลือต้องเป็นตัวเลข' })
+    .int('จำนวนเม็ดที่เหลือต้องเป็นจำนวนเต็ม')
+    .min(0, 'จำนวนเม็ดที่เหลือต้องไม่ติดลบ'),
+});
+export type LeftoverItem = z.infer<typeof leftoverItemSchema>;
+
+/**
+ * Leftover medicines arrive as a list and are stored as JSON text in the visit's `leftoverMeds`
+ * column (one text cell in the Sheet). Read them back with {@link parseLeftovers}.
+ */
+const leftoverMedsField = z
+  .array(leftoverItemSchema)
+  .max(30)
+  .optional()
+  .nullable()
+  .transform((items) => (items && items.length ? JSON.stringify(items) : null));
+
+/** Stored `leftoverMeds` → rows; text saved before the list existed comes back as `legacy`. */
+export function parseLeftovers(stored: string | null | undefined): { items: LeftoverItem[]; legacy: string | null } {
+  if (!stored) return { items: [], legacy: null };
+  try {
+    const parsed = z.array(leftoverItemSchema).safeParse(JSON.parse(stored));
+    if (parsed.success) return { items: parsed.data, legacy: null };
+  } catch {
+    /* not JSON: free text from before */
+  }
+  return { items: [], legacy: stored };
+}
+
 const visitFields = {
   visitDate: isoDate,
   medicationTaking: z.enum(MEDICATION_TAKING),
   medicationTakingDetail: optionalText,
-  leftoverMeds: optionalText,
+  leftoverMeds: leftoverMedsField,
   herbalOrPainkiller: z.boolean(),
   herbalDetail: optionalText,
   dietControlled: z.boolean(),
@@ -97,12 +132,14 @@ const visitFields = {
   furtherAdjustments: optionalText,
   nextAppointment: isoDate.optional().nullable(),
   aceiArb: z.enum(ACEI_ARB, { errorMap: () => ({ message: 'กรุณาเลือกว่ามียากลุ่ม ACEI/ARB หรือไม่' }) }),
+  aceiArbDrug: z.enum(ACEI_ARB_DRUGS).optional().nullable(),
   aceiArbNoReason: optionalText,
 };
 type VisitRuleInput = {
   visitDate: Date;
   nextAppointment?: Date | null;
   aceiArb: 'yes' | 'no';
+  aceiArbDrug?: (typeof ACEI_ARB_DRUGS)[number] | null;
   aceiArbNoReason?: string | null;
   medicationTaking: 'correct' | 'incorrect';
   herbalOrPainkiller: boolean;
@@ -113,10 +150,13 @@ const appointmentAfterVisit = (v: VisitRuleInput) => !v.nextAppointment || v.nex
 const aceiReasonGiven = (v: VisitRuleInput) => v.aceiArb === 'yes' || !!v.aceiArbNoReason;
 const APPOINTMENT_RULE = { message: 'วันนัดครั้งต่อไปต้องไม่ก่อนวันที่มา', path: ['nextAppointment'] };
 const ACEI_RULE = { message: 'กรุณาระบุเหตุผลที่ไม่ได้รับยากลุ่ม ACEI/ARB', path: ['aceiArbNoReason'] };
+const aceiDrugChosen = (v: VisitRuleInput) => v.aceiArb === 'no' || !!v.aceiArbDrug;
+const ACEI_DRUG_RULE = { message: 'กรุณาเลือกยากลุ่ม ACEI/ARB ที่ผู้ป่วยใช้ (Enalapril หรือ Losartan)', path: ['aceiArbDrug'] };
 /** Drops a "please specify" text whose answer no longer asks for one (e.g. ไม่ถูกต้อง changed to ถูกต้อง). */
 const clearUnusedDetails = <T extends VisitRuleInput>(v: T): T => ({
   ...v,
   ...(v.aceiArb === 'yes' && { aceiArbNoReason: null }),
+  ...(v.aceiArb === 'no' && { aceiArbDrug: null }),
   ...(v.medicationTaking === 'correct' && { medicationTakingDetail: null }),
   ...(!v.herbalOrPainkiller && { herbalDetail: null }),
   ...(v.dietControlled && { dietDetail: null }),
@@ -131,6 +171,7 @@ export const visitCreateSchema = z
   })
   .refine(appointmentAfterVisit, APPOINTMENT_RULE)
   .refine(aceiReasonGiven, ACEI_RULE)
+  .refine(aceiDrugChosen, ACEI_DRUG_RULE)
   .transform(clearUnusedDetails);
 export type VisitCreate = z.infer<typeof visitCreateSchema>;
 
@@ -139,6 +180,7 @@ export const visitUpdateSchema = z
   .object(visitFields)
   .refine(appointmentAfterVisit, APPOINTMENT_RULE)
   .refine(aceiReasonGiven, ACEI_RULE)
+  .refine(aceiDrugChosen, ACEI_DRUG_RULE)
   .transform(clearUnusedDetails);
 export type VisitUpdate = z.infer<typeof visitUpdateSchema>;
 
