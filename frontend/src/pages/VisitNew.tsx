@@ -34,16 +34,17 @@ export function VisitNew() {
   const [dbp, setDbp] = useState('');
   const [aceiArb, setAceiArb] = useState<'' | 'yes' | 'no'>('');
   const [aceiArbNoReason, setAceiArbNoReason] = useState('');
-  const [taking, setTaking] = useState<'' | 'correct' | 'incorrect'>('');
+  // Note starts at the usual answers; staff only change what is abnormal.
+  const [taking, setTaking] = useState<'' | 'correct' | 'incorrect'>('correct');
   const [takingDetail, setTakingDetail] = useState('');
   const [leftovers, setLeftovers] = useState<LeftoverRow[]>([]);
   const [aceiArbDrug, setAceiArbDrug] = useState<'' | 'enalapril' | 'losartan'>('');
   const [dietDetail, setDietDetail] = useState('');
   const [seasoningDetail, setSeasoningDetail] = useState('');
-  const [herbal, setHerbal] = useState<'' | 'yes' | 'no'>('');
+  const [herbal, setHerbal] = useState<'' | 'yes' | 'no'>('no');
   const [herbalDetail, setHerbalDetail] = useState('');
-  const [diet, setDiet] = useState<'' | 'yes' | 'no'>('');
-  const [seasoning, setSeasoning] = useState<'' | 'reduce_needed' | 'adjusted'>('');
+  const [diet, setDiet] = useState<'' | 'yes' | 'no'>('yes');
+  const [seasoning, setSeasoning] = useState<'' | 'reduce_needed' | 'adjusted'>('adjusted');
   const [further, setFurther] = useState('');
   const [next, setNext] = useState('');
   const [meds, setMeds] = useState<MedDraft[]>([]);
@@ -188,7 +189,7 @@ export function VisitNew() {
             {diet === 'no' && <input aria-label="ระบุเรื่องอาหาร" placeholder="ระบุ เช่น กินของหวาน ผลไม้รสหวาน" value={dietDetail} onChange={(e) => setDietDetail(e.target.value)} className="detail-input warn" />}
           </Field>
           <Field label="เครื่องปรุง">
-            <Choice name="seasoning" danger={['reduce_needed']} value={seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับแล้ว']]} onChange={setSeasoning} />
+            <Choice name="seasoning" danger={['reduce_needed']} value={seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับลดแล้ว']]} onChange={setSeasoning} />
             {seasoning === 'reduce_needed' && <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ เช่น น้ำปลา ผงชูรส" value={seasoningDetail} onChange={(e) => setSeasoningDetail(e.target.value)} className="detail-input warn" />}
           </Field>
         </div>

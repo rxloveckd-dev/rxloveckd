@@ -177,7 +177,7 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
           )}
         </Field>
         <Field label="เครื่องปรุง">
-          <Choice name={`seas-${visit.id}`} danger={['reduce_needed']} value={f.seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับแล้ว']]} onChange={set('seasoning')} />
+          <Choice name={`seas-${visit.id}`} danger={['reduce_needed']} value={f.seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับลดแล้ว']]} onChange={set('seasoning')} />
           {f.seasoning === 'reduce_needed' && (
             <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ" value={f.seasoningDetail} onChange={(e) => set('seasoningDetail')(e.target.value)} className="detail-input warn" />
           )}
