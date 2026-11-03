@@ -10,5 +10,8 @@ export default defineConfig({
     },
     globalSetup: './tests/globalSetup.ts',
     fileParallelism: false,
+    // SQLite + bcrypt on clinic PCs: several requests per test can pass 5 s.
+    testTimeout: 20000,
+    hookTimeout: 20000,
   },
 });
