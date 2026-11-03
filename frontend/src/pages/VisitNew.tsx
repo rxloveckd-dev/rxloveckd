@@ -33,6 +33,10 @@ export function VisitNew() {
   const [aceiArb, setAceiArb] = useState<'' | 'yes' | 'no'>('');
   const [aceiArbNoReason, setAceiArbNoReason] = useState('');
   const [taking, setTaking] = useState<'' | 'correct' | 'incorrect'>('');
+  const [takingDetail, setTakingDetail] = useState('');
+  const [leftover, setLeftover] = useState('');
+  const [dietDetail, setDietDetail] = useState('');
+  const [seasoningDetail, setSeasoningDetail] = useState('');
   const [herbal, setHerbal] = useState<'' | 'yes' | 'no'>('');
   const [herbalDetail, setHerbalDetail] = useState('');
   const [diet, setDiet] = useState<'' | 'yes' | 'no'>('');
@@ -63,10 +67,14 @@ export function VisitNew() {
     const body = {
       visitDate,
       medicationTaking: taking || undefined,
+      medicationTakingDetail: taking === 'incorrect' ? takingDetail || null : null,
+      leftoverMeds: leftover || null,
       herbalOrPainkiller: herbal === '' ? undefined : herbal === 'yes',
       herbalDetail: herbal === 'yes' ? herbalDetail : null,
       dietControlled: diet === '' ? undefined : diet === 'yes',
+      dietDetail: diet === 'no' ? dietDetail || null : null,
       seasoning: seasoning || undefined,
+      seasoningDetail: seasoning === 'reduce_needed' ? seasoningDetail || null : null,
       furtherAdjustments: further || null,
       nextAppointment: next || null,
       aceiArb: aceiArb || undefined,
@@ -159,6 +167,7 @@ export function VisitNew() {
         <div className="grid-2">
           <Field label="การกินยา">
             <Choice name="taking" value={taking} options={[['correct', 'ถูกต้อง'], ['incorrect', 'ไม่ถูกต้อง']]} onChange={setTaking} />
+            {taking === 'incorrect' && <input aria-label="ระบุการกินยาที่ไม่ถูกต้อง" placeholder="ระบุ เช่น กินยาไม่ตรงเวลา ลืมกินยามื้อเย็น" value={takingDetail} onChange={(e) => setTakingDetail(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />}
           </Field>
           <Field label="กินยาสมุนไพร/ยาแก้ปวด">
             <Choice name="herbal" value={herbal} options={[['yes', 'กิน'], ['no', 'ไม่กิน']]} onChange={setHerbal} />
@@ -166,9 +175,14 @@ export function VisitNew() {
           </Field>
           <Field label="อาหาร">
             <Choice name="diet" value={diet} options={[['yes', 'คุมอาหาร'], ['no', 'ไม่คุม']]} onChange={setDiet} />
+            {diet === 'no' && <input aria-label="ระบุเรื่องอาหาร" placeholder="ระบุ เช่น กินของหวาน ผลไม้รสหวาน" value={dietDetail} onChange={(e) => setDietDetail(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />}
           </Field>
           <Field label="เครื่องปรุง">
             <Choice name="seasoning" value={seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับแล้ว']]} onChange={setSeasoning} />
+            {seasoning === 'reduce_needed' && <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ เช่น น้ำปลา ผงชูรส" value={seasoningDetail} onChange={(e) => setSeasoningDetail(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />}
+          </Field>
+          <Field label="ยาเหลือ" htmlFor="lo">
+            <input id="lo" value={leftover} onChange={(e) => setLeftover(e.target.value)} placeholder="ระบุชื่อยาและจำนวนที่เหลือ (ถ้ามี)" />
           </Field>
         </div>
         <div className="grid-2" style={{ marginTop: 14 }}>

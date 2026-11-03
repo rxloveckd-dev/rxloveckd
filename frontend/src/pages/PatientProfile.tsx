@@ -22,6 +22,10 @@ interface VisitRow {
   visitNo: number;
   visitDate: string;
   medicationTaking: 'correct' | 'incorrect';
+  medicationTakingDetail?: string | null;
+  leftoverMeds?: string | null;
+  dietDetail?: string | null;
+  seasoningDetail?: string | null;
   herbalOrPainkiller: boolean;
   herbalDetail: string | null;
   dietControlled: boolean;
@@ -85,6 +89,10 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
     aceiArb: (visit.aceiArb ?? '') as '' | 'yes' | 'no',
     aceiArbNoReason: visit.aceiArbNoReason ?? '',
     medicationTaking: visit.medicationTaking,
+    medicationTakingDetail: visit.medicationTakingDetail ?? '',
+    leftoverMeds: visit.leftoverMeds ?? '',
+    dietDetail: visit.dietDetail ?? '',
+    seasoningDetail: visit.seasoningDetail ?? '',
     herbal: visit.herbalOrPainkiller ? 'yes' : 'no',
     herbalDetail: visit.herbalDetail ?? '',
     diet: visit.dietControlled ? 'yes' : 'no',
@@ -100,10 +108,14 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
     const body = {
       visitDate: f.visitDate,
       medicationTaking: f.medicationTaking,
+      medicationTakingDetail: f.medicationTakingDetail || null,
+      leftoverMeds: f.leftoverMeds || null,
       herbalOrPainkiller: f.herbal === 'yes',
       herbalDetail: f.herbal === 'yes' ? f.herbalDetail : null,
       dietControlled: f.diet === 'yes',
+      dietDetail: f.dietDetail || null,
       seasoning: f.seasoning,
+      seasoningDetail: f.seasoningDetail || null,
       furtherAdjustments: f.furtherAdjustments || null,
       nextAppointment: f.nextAppointment || null,
       aceiArb: f.aceiArb || undefined,
@@ -137,6 +149,9 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
         </Field>
         <Field label="การกินยา">
           <Choice name={`taking-${visit.id}`} value={f.medicationTaking} options={[['correct', 'ถูกต้อง'], ['incorrect', 'ไม่ถูกต้อง']]} onChange={set('medicationTaking')} />
+          {f.medicationTaking === 'incorrect' && (
+            <input aria-label="ระบุการกินยาที่ไม่ถูกต้อง" placeholder="ระบุ" value={f.medicationTakingDetail} onChange={(e) => set('medicationTakingDetail')(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />
+          )}
         </Field>
         <Field label="กินยาสมุนไพร/ยาแก้ปวด">
           <Choice name={`herbal-${visit.id}`} value={f.herbal} options={[['yes', 'กิน'], ['no', 'ไม่กิน']]} onChange={set('herbal')} />
@@ -146,9 +161,18 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
         </Field>
         <Field label="อาหาร">
           <Choice name={`diet-${visit.id}`} value={f.diet} options={[['yes', 'คุมอาหาร'], ['no', 'ไม่คุม']]} onChange={set('diet')} />
+          {f.diet === 'no' && (
+            <input aria-label="ระบุเรื่องอาหาร" placeholder="ระบุ" value={f.dietDetail} onChange={(e) => set('dietDetail')(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />
+          )}
         </Field>
         <Field label="เครื่องปรุง">
           <Choice name={`seas-${visit.id}`} value={f.seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับแล้ว']]} onChange={set('seasoning')} />
+          {f.seasoning === 'reduce_needed' && (
+            <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ" value={f.seasoningDetail} onChange={(e) => set('seasoningDetail')(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />
+          )}
+        </Field>
+        <Field label="ยาเหลือ" htmlFor={`lo-${visit.id}`}>
+          <input id={`lo-${visit.id}`} value={f.leftoverMeds} onChange={(e) => set('leftoverMeds')(e.target.value)} placeholder="ชื่อยาและจำนวนที่เหลือ" />
         </Field>
         <Field label="สิ่งที่ต้องปรับเพิ่ม" htmlFor={`fu-${visit.id}`}>
           <textarea id={`fu-${visit.id}`} value={f.furtherAdjustments} onChange={(e) => set('furtherAdjustments')(e.target.value)} />
@@ -212,15 +236,23 @@ function Visits({ id }: { id: string }) {
                   {v.aceiArb === 'no' && v.aceiArbNoReason ? ` เพราะ${v.aceiArbNoReason}` : ''}
                 </dd>
                 <dt className="muted">การกินยา</dt>
-                <dd style={{ margin: 0 }} className={v.medicationTaking === 'incorrect' ? 'down' : ''}>{LABELS.medicationTaking[v.medicationTaking]}</dd>
+                <dd style={{ margin: 0 }} className={v.medicationTaking === 'incorrect' ? 'down' : ''}>
+                  {LABELS.medicationTaking[v.medicationTaking]}
+                  {v.medicationTaking === 'incorrect' && v.medicationTakingDetail ? `: ${v.medicationTakingDetail}` : ''}
+                </dd>
+                <dt className="muted">ยาเหลือ</dt>
+                <dd style={{ margin: 0 }}>{v.leftoverMeds || '–'}</dd>
                 <dt className="muted">ยาสมุนไพร/ยาแก้ปวด</dt>
                 <dd style={{ margin: 0 }} className={v.herbalOrPainkiller ? 'down' : ''}>
                   {v.herbalOrPainkiller ? `กิน${v.herbalDetail ? `: ${v.herbalDetail}` : ''}` : 'ไม่กิน'}
                 </dd>
                 <dt className="muted">อาหาร</dt>
-                <dd style={{ margin: 0 }}>{v.dietControlled ? 'คุม' : 'ไม่คุม'}</dd>
+                <dd style={{ margin: 0 }} className={v.dietControlled ? '' : 'down'}>{v.dietControlled ? 'คุม' : `ไม่คุม${v.dietDetail ? `: ${v.dietDetail}` : ''}`}</dd>
                 <dt className="muted">เครื่องปรุง</dt>
-                <dd style={{ margin: 0 }}>{LABELS.seasoning[v.seasoning]}</dd>
+                <dd style={{ margin: 0 }}>
+                  {LABELS.seasoning[v.seasoning]}
+                  {v.seasoning === 'reduce_needed' && v.seasoningDetail ? `: ${v.seasoningDetail}` : ''}
+                </dd>
                 <dt className="muted">สิ่งที่ต้องปรับเพิ่ม</dt>
                 <dd style={{ margin: 0 }}>{v.furtherAdjustments || '–'}</dd>
                 <dt className="muted">นัดครั้งต่อไป</dt>

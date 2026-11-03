@@ -36,7 +36,7 @@ interface Store {
   session: string | null;
   patients: { id: string; nationalId: string; hn: string; title: string; firstName: string; lastName: string; birthDate: string; sex: 'male' | 'female'; ckdCause: string | null; programStatus: string; enrolledAt: string; notes: string | null; dischargeCode?: string | null; dischargeDate?: string | null; dischargeNote?: string | null }[];
   labs: { id: string; patientId: string; visitId: string | null; test: string; value: number; unit: string; collectedAt: string; origin: string; source: string }[];
-  visits: { id: string; patientId: string; visitNo: number; visitDate: string; medicationTaking: string; herbalOrPainkiller: boolean; herbalDetail: string | null; dietControlled: boolean; seasoning: string; furtherAdjustments: string | null; nextAppointment: string | null; aceiArb: string | null; aceiArbNoReason: string | null; pharmacistId: string }[];
+  visits: { id: string; patientId: string; visitNo: number; visitDate: string; medicationTaking: string; herbalOrPainkiller: boolean; herbalDetail: string | null; dietControlled: boolean; seasoning: string; furtherAdjustments: string | null; nextAppointment: string | null; aceiArb: string | null; aceiArbNoReason: string | null; pharmacistId: string; medicationTakingDetail?: string | null; leftoverMeds?: string | null; dietDetail?: string | null; seasoningDetail?: string | null }[];
   medications: { id: string; patientId: string; visitId: string | null; drugName: string; strength: string | null; directions: string | null; drugClass: string; status: string; createdAt: string }[];
   drps: { id: string; patientId: string; visitId: string | null; recordedAt: string; category: string; description: string; drugs: string | null; severity: string; recommendation: string; prescriberDecision: string; prescriberReason: string | null; decidedById: string | null; pharmacistId: string }[];
 }
@@ -525,6 +525,10 @@ const routes: [string, RegExp, Handler][] = [
       medicationTaking: d.medicationTaking,
       herbalOrPainkiller: d.herbalOrPainkiller,
       herbalDetail: d.herbalDetail ?? null,
+      medicationTakingDetail: d.medicationTakingDetail ?? null,
+      leftoverMeds: d.leftoverMeds ?? null,
+      dietDetail: d.dietDetail ?? null,
+      seasoningDetail: d.seasoningDetail ?? null,
       dietControlled: d.dietControlled,
       seasoning: d.seasoning,
       furtherAdjustments: d.furtherAdjustments ?? null,
@@ -555,6 +559,10 @@ const routes: [string, RegExp, Handler][] = [
       medicationTaking: d.medicationTaking,
       herbalOrPainkiller: d.herbalOrPainkiller,
       herbalDetail: d.herbalDetail ?? null,
+      medicationTakingDetail: d.medicationTakingDetail ?? null,
+      leftoverMeds: d.leftoverMeds ?? null,
+      dietDetail: d.dietDetail ?? null,
+      seasoningDetail: d.seasoningDetail ?? null,
       dietControlled: d.dietControlled,
       seasoning: d.seasoning,
       furtherAdjustments: d.furtherAdjustments ?? null,

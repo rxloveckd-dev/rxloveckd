@@ -80,21 +80,42 @@ export type MedicationCreate = z.infer<typeof medicationCreateSchema>;
 const visitFields = {
   visitDate: isoDate,
   medicationTaking: z.enum(MEDICATION_TAKING),
+  medicationTakingDetail: optionalText,
+  leftoverMeds: optionalText,
   herbalOrPainkiller: z.boolean(),
   herbalDetail: optionalText,
   dietControlled: z.boolean(),
+  dietDetail: optionalText,
   seasoning: z.enum(SEASONING),
+  seasoningDetail: optionalText,
   furtherAdjustments: optionalText,
   nextAppointment: isoDate.optional().nullable(),
   aceiArb: z.enum(ACEI_ARB, { errorMap: () => ({ message: 'กรุณาเลือกว่ามียากลุ่ม ACEI/ARB หรือไม่' }) }),
   aceiArbNoReason: optionalText,
 };
-type VisitRuleInput = { visitDate: Date; nextAppointment?: Date | null; aceiArb: 'yes' | 'no'; aceiArbNoReason?: string | null };
+type VisitRuleInput = {
+  visitDate: Date;
+  nextAppointment?: Date | null;
+  aceiArb: 'yes' | 'no';
+  aceiArbNoReason?: string | null;
+  medicationTaking: 'correct' | 'incorrect';
+  herbalOrPainkiller: boolean;
+  dietControlled: boolean;
+  seasoning: 'reduce_needed' | 'adjusted';
+};
 const appointmentAfterVisit = (v: VisitRuleInput) => !v.nextAppointment || v.nextAppointment >= v.visitDate;
 const aceiReasonGiven = (v: VisitRuleInput) => v.aceiArb === 'yes' || !!v.aceiArbNoReason;
 const APPOINTMENT_RULE = { message: 'วันนัดครั้งต่อไปต้องไม่ก่อนวันที่มา', path: ['nextAppointment'] };
 const ACEI_RULE = { message: 'กรุณาระบุเหตุผลที่ไม่ได้รับยากลุ่ม ACEI/ARB', path: ['aceiArbNoReason'] };
-const clearAceiReason = <T extends VisitRuleInput>(v: T): T => (v.aceiArb === 'yes' ? { ...v, aceiArbNoReason: null } : v);
+/** Drops a "please specify" text whose answer no longer asks for one (e.g. ไม่ถูกต้อง changed to ถูกต้อง). */
+const clearUnusedDetails = <T extends VisitRuleInput>(v: T): T => ({
+  ...v,
+  ...(v.aceiArb === 'yes' && { aceiArbNoReason: null }),
+  ...(v.medicationTaking === 'correct' && { medicationTakingDetail: null }),
+  ...(!v.herbalOrPainkiller && { herbalDetail: null }),
+  ...(v.dietControlled && { dietDetail: null }),
+  ...(v.seasoning === 'adjusted' && { seasoningDetail: null }),
+});
 
 export const visitCreateSchema = z
   .object({
@@ -104,7 +125,7 @@ export const visitCreateSchema = z
   })
   .refine(appointmentAfterVisit, APPOINTMENT_RULE)
   .refine(aceiReasonGiven, ACEI_RULE)
-  .transform(clearAceiReason);
+  .transform(clearUnusedDetails);
 export type VisitCreate = z.infer<typeof visitCreateSchema>;
 
 /** Edits the visit's own answers; its labs and medicines are edited in their own tabs. */
@@ -112,7 +133,7 @@ export const visitUpdateSchema = z
   .object(visitFields)
   .refine(appointmentAfterVisit, APPOINTMENT_RULE)
   .refine(aceiReasonGiven, ACEI_RULE)
-  .transform(clearAceiReason);
+  .transform(clearUnusedDetails);
 export type VisitUpdate = z.infer<typeof visitUpdateSchema>;
 
 export const labUpdateSchema = labCreateSchema;

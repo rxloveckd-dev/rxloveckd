@@ -26,24 +26,24 @@ model User {
 }
 
 model Patient {
-  id                      String   @id @default(cuid())
-  nationalId              String   @unique
-  hn                      String   @unique
+  id                      String    @id @default(cuid())
+  nationalId              String    @unique
+  hn                      String    @unique
   title                   String
   firstName               String
   lastName                String
   birthDate               DateTime
   sex                     String // male | female
   ckdCause                String?
-  programStatus           String   @default("active") // active | discharged
+  programStatus           String    @default("active") // active | discharged
   dischargeCode           String? // 01–12, see LABELS.discharge
   dischargeDate           DateTime?
   dischargeNote           String?
   enrolledAt              DateTime
   notes                   String?
   responsiblePharmacistId String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   responsiblePharmacist User?        @relation("ResponsiblePharmacist", fields: [responsiblePharmacistId], references: [id])
   labs                  LabResult[]
@@ -55,21 +55,25 @@ model Patient {
 }
 
 model Visit {
-  id                 String   @id @default(cuid())
-  patientId          String
-  visitNo            Int
-  visitDate          DateTime
-  medicationTaking   String // correct | incorrect
-  herbalOrPainkiller Boolean
-  herbalDetail       String?
-  dietControlled     Boolean
-  seasoning          String // reduce_needed | adjusted
-  furtherAdjustments String?
-  nextAppointment    DateTime?
-  aceiArb            String? // yes | no (null for visits recorded before this field existed)
-  aceiArbNoReason    String?
-  pharmacistId       String
-  createdAt          DateTime @default(now())
+  id                     String    @id @default(cuid())
+  patientId              String
+  visitNo                Int
+  visitDate              DateTime
+  medicationTaking       String // correct | incorrect
+  medicationTakingDetail String? // what was wrong, when incorrect
+  leftoverMeds           String? // ยาเหลือ
+  herbalOrPainkiller     Boolean
+  herbalDetail           String?
+  dietControlled         Boolean
+  dietDetail             String? // when not controlled
+  seasoning              String // reduce_needed | adjusted
+  seasoningDetail        String? // what to cut down, when reduce_needed
+  furtherAdjustments     String?
+  nextAppointment        DateTime?
+  aceiArb                String? // yes | no (null for visits recorded before this field existed)
+  aceiArbNoReason        String?
+  pharmacistId           String
+  createdAt              DateTime  @default(now())
 
   patient     Patient      @relation(fields: [patientId], references: [id])
   pharmacist  User         @relation(fields: [pharmacistId], references: [id])

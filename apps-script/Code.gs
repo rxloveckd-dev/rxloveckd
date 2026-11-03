@@ -11,7 +11,9 @@
 
 const TABLES = {
   patients: ['id', 'nationalId', 'hn', 'title', 'firstName', 'lastName', 'birthDate', 'sex', 'ckdCause', 'programStatus', 'enrolledAt', 'notes', 'dischargeCode', 'dischargeDate', 'dischargeNote'],
-  visits: ['id', 'patientId', 'visitNo', 'visitDate', 'medicationTaking', 'herbalOrPainkiller', 'herbalDetail', 'dietControlled', 'seasoning', 'furtherAdjustments', 'nextAppointment', 'aceiArb', 'aceiArbNoReason', 'pharmacistId'],
+  visits: ['id', 'patientId', 'visitNo', 'visitDate', 'medicationTaking', 'herbalOrPainkiller', 'herbalDetail', 'dietControlled', 'seasoning', 'furtherAdjustments', 'nextAppointment', 'aceiArb', 'aceiArbNoReason', 'pharmacistId',
+    // added later: new columns only ever go at the end so existing rows stay aligned
+    'medicationTakingDetail', 'leftoverMeds', 'dietDetail', 'seasoningDetail'],
   labs: ['id', 'patientId', 'visitId', 'test', 'value', 'unit', 'collectedAt', 'origin', 'source'],
   medications: ['id', 'patientId', 'visitId', 'drugName', 'strength', 'directions', 'drugClass', 'status', 'createdAt'],
   drps: ['id', 'patientId', 'visitId', 'recordedAt', 'category', 'description', 'drugs', 'severity', 'recommendation', 'prescriberDecision', 'prescriberReason', 'decidedById', 'pharmacistId'],

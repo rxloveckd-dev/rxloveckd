@@ -103,6 +103,27 @@ describe('edit and delete', () => {
     expect(await prisma.drp.count()).toBe(0);
   });
 
+  it('saves the note details and drops a detail when its answer no longer asks for one', async () => {
+    const { pharm, id } = await setup();
+    const created = await pharm
+      .post(`/api/patients/${id}/visits`)
+      .send(visitBody({
+        medicationTaking: 'incorrect', medicationTakingDetail: 'ลืมกินยามื้อเย็น',
+        leftoverMeds: 'Amlodipine 10 เม็ด',
+        dietControlled: false, dietDetail: 'กินของหวาน',
+        seasoning: 'reduce_needed', seasoningDetail: 'น้ำปลา',
+      }))
+      .expect(201);
+    expect(created.body.visit).toMatchObject({ medicationTakingDetail: 'ลืมกินยามื้อเย็น', leftoverMeds: 'Amlodipine 10 เม็ด', dietDetail: 'กินของหวาน', seasoningDetail: 'น้ำปลา' });
+
+    const { labs: _l, medications: _m, ...fields } = visitBody();
+    const edited = await pharm
+      .patch(`/api/visits/${created.body.visit.id}`)
+      .send({ ...fields, medicationTakingDetail: 'ลืมกินยามื้อเย็น', dietDetail: 'กินของหวาน', seasoningDetail: 'น้ำปลา', leftoverMeds: 'Amlodipine 10 เม็ด' })
+      .expect(200);
+    expect(edited.body.visit).toMatchObject({ medicationTakingDetail: null, dietDetail: null, seasoningDetail: null, leftoverMeds: 'Amlodipine 10 เม็ด' });
+  });
+
   it('returns 404 for records that do not exist', async () => {
     const { pharm } = await setup();
     expect((await pharm.delete('/api/labs/nope')).status).toBe(404);
