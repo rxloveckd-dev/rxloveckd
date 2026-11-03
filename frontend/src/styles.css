@@ -515,3 +515,9 @@ td.num, th.num { text-align: right; }
   .leftover-row { grid-template-columns: 1fr 1fr auto; }
   .leftover-row label:first-child { grid-column: 1 / -1; }
 }
+
+/* ---------- problem answers (การกินยาไม่ถูกต้อง, กินยาสมุนไพร, ไม่คุมอาหาร, เครื่องปรุงควรลด) */
+.choice label.danger:has(input:checked) { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+.detail-input { font: inherit; padding: 8px 10px; margin-top: 6px; border-radius: var(--radius-sm); border: 1px solid #c3c9d6; }
+.detail-input.warn { border: 2px solid var(--red); background: var(--red-bg); color: var(--ink); }
+.detail-input.warn::placeholder { color: #a35a5a; }

@@ -159,27 +159,27 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
           )}
         </Field>
         <Field label="การกินยา">
-          <Choice name={`taking-${visit.id}`} value={f.medicationTaking} options={[['correct', 'ถูกต้อง'], ['incorrect', 'ไม่ถูกต้อง']]} onChange={set('medicationTaking')} />
+          <Choice name={`taking-${visit.id}`} danger={['incorrect']} value={f.medicationTaking} options={[['correct', 'ถูกต้อง'], ['incorrect', 'ไม่ถูกต้อง']]} onChange={set('medicationTaking')} />
           {f.medicationTaking === 'incorrect' && (
-            <input aria-label="ระบุการกินยาที่ไม่ถูกต้อง" placeholder="ระบุ" value={f.medicationTakingDetail} onChange={(e) => set('medicationTakingDetail')(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />
+            <input aria-label="ระบุการกินยาที่ไม่ถูกต้อง" placeholder="ระบุ" value={f.medicationTakingDetail} onChange={(e) => set('medicationTakingDetail')(e.target.value)} className="detail-input warn" />
           )}
         </Field>
         <Field label="กินยาสมุนไพร/ยาแก้ปวด">
-          <Choice name={`herbal-${visit.id}`} value={f.herbal} options={[['yes', 'กิน'], ['no', 'ไม่กิน']]} onChange={set('herbal')} />
+          <Choice name={`herbal-${visit.id}`} danger={['yes']} value={f.herbal} options={[['yes', 'กิน'], ['no', 'ไม่กิน']]} onChange={set('herbal')} />
           {f.herbal === 'yes' && (
-            <input aria-label="รายละเอียดยาสมุนไพร/ยาแก้ปวด" placeholder="ชื่อยา ซื้อจากที่ไหน" value={f.herbalDetail} onChange={(e) => set('herbalDetail')(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />
+            <input aria-label="รายละเอียดยาสมุนไพร/ยาแก้ปวด" placeholder="ชื่อยา ซื้อจากที่ไหน" value={f.herbalDetail} onChange={(e) => set('herbalDetail')(e.target.value)} className="detail-input warn" />
           )}
         </Field>
         <Field label="อาหาร">
-          <Choice name={`diet-${visit.id}`} value={f.diet} options={[['yes', 'คุมอาหาร'], ['no', 'ไม่คุม']]} onChange={set('diet')} />
+          <Choice name={`diet-${visit.id}`} danger={['no']} value={f.diet} options={[['yes', 'คุมอาหาร'], ['no', 'ไม่คุม']]} onChange={set('diet')} />
           {f.diet === 'no' && (
-            <input aria-label="ระบุเรื่องอาหาร" placeholder="ระบุ" value={f.dietDetail} onChange={(e) => set('dietDetail')(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />
+            <input aria-label="ระบุเรื่องอาหาร" placeholder="ระบุ" value={f.dietDetail} onChange={(e) => set('dietDetail')(e.target.value)} className="detail-input warn" />
           )}
         </Field>
         <Field label="เครื่องปรุง">
-          <Choice name={`seas-${visit.id}`} value={f.seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับแล้ว']]} onChange={set('seasoning')} />
+          <Choice name={`seas-${visit.id}`} danger={['reduce_needed']} value={f.seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับแล้ว']]} onChange={set('seasoning')} />
           {f.seasoning === 'reduce_needed' && (
-            <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ" value={f.seasoningDetail} onChange={(e) => set('seasoningDetail')(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />
+            <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ" value={f.seasoningDetail} onChange={(e) => set('seasoningDetail')(e.target.value)} className="detail-input warn" />
           )}
         </Field>
         <Field label="สิ่งที่ต้องปรับเพิ่ม" htmlFor={`fu-${visit.id}`}>

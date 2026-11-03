@@ -55,16 +55,19 @@ export function Choice<T extends string>({
   value,
   options,
   onChange,
+  danger = [],
 }: {
   name: string;
   value: T | '';
   options: [T, string][];
   onChange: (v: T) => void;
+  /** Answers that are a problem for the patient; shown in red when picked. */
+  danger?: T[];
 }) {
   return (
     <div className="choice" role="radiogroup">
       {options.map(([v, label]) => (
-        <label key={v}>
+        <label key={v} className={danger.includes(v) ? 'danger' : undefined}>
           <input type="radio" name={name} value={v} checked={value === v} onChange={() => onChange(v)} />
           {label}
         </label>

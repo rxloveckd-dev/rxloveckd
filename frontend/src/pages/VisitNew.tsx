@@ -176,20 +176,20 @@ export function VisitNew() {
       <Section title="Note">
         <div className="grid-2">
           <Field label="การกินยา">
-            <Choice name="taking" value={taking} options={[['correct', 'ถูกต้อง'], ['incorrect', 'ไม่ถูกต้อง']]} onChange={setTaking} />
-            {taking === 'incorrect' && <input aria-label="ระบุการกินยาที่ไม่ถูกต้อง" placeholder="ระบุ เช่น กินยาไม่ตรงเวลา ลืมกินยามื้อเย็น" value={takingDetail} onChange={(e) => setTakingDetail(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />}
+            <Choice name="taking" danger={['incorrect']} value={taking} options={[['correct', 'ถูกต้อง'], ['incorrect', 'ไม่ถูกต้อง']]} onChange={setTaking} />
+            {taking === 'incorrect' && <input aria-label="ระบุการกินยาที่ไม่ถูกต้อง" placeholder="ระบุ เช่น กินยาไม่ตรงเวลา ลืมกินยามื้อเย็น" value={takingDetail} onChange={(e) => setTakingDetail(e.target.value)} className="detail-input warn" />}
           </Field>
           <Field label="กินยาสมุนไพร/ยาแก้ปวด">
-            <Choice name="herbal" value={herbal} options={[['yes', 'กิน'], ['no', 'ไม่กิน']]} onChange={setHerbal} />
-            {herbal === 'yes' && <input aria-label="รายละเอียดยาสมุนไพร/ยาแก้ปวด" placeholder="ชื่อยา ซื้อจากที่ไหน" value={herbalDetail} onChange={(e) => setHerbalDetail(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />}
+            <Choice name="herbal" danger={['yes']} value={herbal} options={[['yes', 'กิน'], ['no', 'ไม่กิน']]} onChange={setHerbal} />
+            {herbal === 'yes' && <input aria-label="รายละเอียดยาสมุนไพร/ยาแก้ปวด" placeholder="ชื่อยา ซื้อจากที่ไหน" value={herbalDetail} onChange={(e) => setHerbalDetail(e.target.value)} className="detail-input warn" />}
           </Field>
           <Field label="อาหาร">
-            <Choice name="diet" value={diet} options={[['yes', 'คุมอาหาร'], ['no', 'ไม่คุม']]} onChange={setDiet} />
-            {diet === 'no' && <input aria-label="ระบุเรื่องอาหาร" placeholder="ระบุ เช่น กินของหวาน ผลไม้รสหวาน" value={dietDetail} onChange={(e) => setDietDetail(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />}
+            <Choice name="diet" danger={['no']} value={diet} options={[['yes', 'คุมอาหาร'], ['no', 'ไม่คุม']]} onChange={setDiet} />
+            {diet === 'no' && <input aria-label="ระบุเรื่องอาหาร" placeholder="ระบุ เช่น กินของหวาน ผลไม้รสหวาน" value={dietDetail} onChange={(e) => setDietDetail(e.target.value)} className="detail-input warn" />}
           </Field>
           <Field label="เครื่องปรุง">
-            <Choice name="seasoning" value={seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับแล้ว']]} onChange={setSeasoning} />
-            {seasoning === 'reduce_needed' && <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ เช่น น้ำปลา ผงชูรส" value={seasoningDetail} onChange={(e) => setSeasoningDetail(e.target.value)} style={{ font: 'inherit', padding: 8, marginTop: 6 }} />}
+            <Choice name="seasoning" danger={['reduce_needed']} value={seasoning} options={[['reduce_needed', 'ควรปรับลด'], ['adjusted', 'ปรับแล้ว']]} onChange={setSeasoning} />
+            {seasoning === 'reduce_needed' && <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ เช่น น้ำปลา ผงชูรส" value={seasoningDetail} onChange={(e) => setSeasoningDetail(e.target.value)} className="detail-input warn" />}
           </Field>
         </div>
         <div className="grid-2" style={{ marginTop: 14 }}>
