@@ -5,6 +5,9 @@ import { BrowserRouter, HashRouter } from 'react-router-dom';
 import { App } from './App';
 import { GAS_MODE } from './api';
 import './styles.css';
+import { applySavedTheme } from './theme';
+
+applySavedTheme();
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, refetchOnWindowFocus: false } } });
 

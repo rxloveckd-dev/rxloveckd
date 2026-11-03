@@ -14,6 +14,28 @@ import { Reports } from './pages/Reports';
 import { Users } from './pages/Users';
 import { Icon } from './components/Icon';
 import { BUILD_LABEL, VERSION_LABEL } from './version';
+import { THEMES, useTheme } from './theme';
+
+/** Round color swatches under the menu; the choice is remembered on this device. */
+function ThemePicker() {
+  const [theme, setTheme] = useTheme();
+  return (
+    <div className="theme-picker" role="group" aria-label="ธีมสี">
+      <span>ธีมสี</span>
+      {THEMES.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          title={t.label}
+          aria-label={`ธีม${t.label}`}
+          aria-pressed={theme === t.id}
+          style={{ background: t.swatch }}
+          onClick={() => setTheme(t.id)}
+        />
+      ))}
+    </div>
+  );
+}
 
 function KidneyMark() {
   return (
@@ -114,6 +136,7 @@ export function App() {
           </>
         )}
         <div className="side-foot">
+          <ThemePicker />
           <span className="who">
             {user.displayName}
             <br />
