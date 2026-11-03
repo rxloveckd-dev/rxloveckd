@@ -69,5 +69,5 @@ export const LABELS = {
     '5': { range: 'eGFR <15', meaning: 'ไตวายเรื้อรังระยะสุดท้าย' },
   },
   appointment: { none: 'ไม่มีนัด', scheduled: 'มีนัด', upcoming: 'ใกล้ถึงนัด', missed: 'เลยนัด' },
-  role: { pharmacist: 'เภสัชกร', supervisor: 'หัวหน้าเภสัชกร', admin: 'ผู้ดูแลระบบ' },
+  role: { pharmacist: 'เภสัชกร', supervisor: 'เภสัชคลินิก', admin: 'ผู้ดูแลระบบ' },
 } as const;

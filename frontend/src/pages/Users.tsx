@@ -18,14 +18,17 @@ interface ManagedUser {
 
 const USERNAME_RE = /^[a-z0-9._-]{3,30}$/;
 
-/** Validates a new personal username/password pair; returns a Thai error or ''. */
-function checkCredentials(username: string, password: string, confirm: string): string {
+/** Validates a sign-in name/password pair; returns a Thai error or ''. */
+function checkCredentials(username: string, password: string): string {
   if (!password) return '';
-  if (!USERNAME_RE.test(username.trim().toLowerCase())) return 'ชื่อผู้ใช้ใช้ได้เฉพาะ a-z 0-9 . _ - ยาว 3–30 ตัว';
   if (password.length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัว';
-  if (password !== confirm) return 'รหัสผ่านทั้งสองช่องไม่ตรงกัน';
+  if (GAS_MODE && !USERNAME_RE.test(username.trim().toLowerCase())) return 'ชื่อผู้ใช้ใช้ได้เฉพาะ a-z 0-9 . _ - ยาว 3–30 ตัว';
   return '';
 }
+
+/** Suggests a sign-in name from the email: "Somsri.K@gmail.com" → "somsri.k". */
+const usernameFromEmail = (email: string) =>
+  (email.split('@')[0] ?? '').toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 30);
 
 const ROLES: Role[] = ['pharmacist', 'supervisor', 'admin'];
 const ROLE_HELP: Record<Role, string> = {
@@ -36,39 +39,79 @@ const ROLE_HELP: Record<Role, string> = {
 
 const message = (err: unknown) => (err instanceof ApiError ? err.message : 'บันทึกไม่สำเร็จ กรุณาลองใหม่');
 
-function AddUser({ onSaved }: { onSaved: (note: string) => void }) {
+function PasswordInput({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+      <input
+        id={id}
+        type={show ? 'text' : 'password'}
+        autoComplete="new-password"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ flex: 1, minWidth: 0 }}
+      />
+      <button type="button" className="btn secondary small" onClick={() => setShow(!show)}>{show ? 'ซ่อน' : 'แสดง'}</button>
+    </div>
+  );
+}
+
+function RolePicker({ name, value, onChange, disabled }: { name: string; value: Role; onChange: (r: Role) => void; disabled?: boolean }) {
+  return (
+    <>
+      <div className="choice" role="radiogroup">
+        {ROLES.map((r) => (
+          <label key={r}>
+            <input type="radio" name={name} value={r} checked={value === r} disabled={disabled} onChange={() => onChange(r)} />
+            {LABELS.role[r]}
+          </label>
+        ))}
+      </div>
+      <span className="muted" style={{ fontSize: '0.85rem' }}>{disabled ? 'เปลี่ยนสิทธิ์ของตัวเองไม่ได้' : ROLE_HELP[value]}</span>
+    </>
+  );
+}
+
+function useSaveUser(onSaved: (note: string) => void) {
   const qc = useQueryClient();
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [role, setRole] = useState<Role>('pharmacist');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState('');
-  const save = useMutation({
+  return useMutation({
     mutationFn: (u: ManagedUser) => api<{ users: ManagedUser[]; note: string }>('/admin/users', { method: 'POST', json: u }),
     onSuccess: (res) => {
       qc.setQueryData(['admin-users'], { users: [...res.users] });
       onSaved(res.note);
     },
   });
+}
+
+function AddUser({ onSaved }: { onSaved: (note: string) => void }) {
+  const blank = { name: '', email: '', username: '', password: '', role: 'pharmacist' as Role };
+  const [f, setF] = useState(blank);
+  const [usernameTouched, setUsernameTouched] = useState(false);
+  const [error, setError] = useState('');
+  const [added, setAdded] = useState('');
+  const save = useSaveUser(onSaved);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    const problem = checkCredentials(username, password, confirm);
-    if (problem) {
-      setError(problem);
-      return;
-    }
+    setAdded('');
+    if (!f.name.trim()) return setError('กรุณากรอกชื่อ-นามสกุล');
+    if (!f.email.trim()) return setError(GAS_MODE ? 'กรุณากรอกอีเมล Google' : 'กรุณากรอกชื่อผู้ใช้');
+    const problem = checkCredentials(f.username, f.password);
+    if (problem) return setError(problem);
     try {
-      await save.mutateAsync({ email, displayName: name, role, active: true, username, password });
-      setEmail('');
-      setName('');
-      setRole('pharmacist');
-      setUsername('');
-      setPassword('');
-      setConfirm('');
+      await save.mutateAsync({
+        email: f.email,
+        displayName: f.name,
+        role: f.role,
+        active: true,
+        username: GAS_MODE ? f.username : undefined,
+        password: f.password,
+      });
+      setAdded(`เพิ่ม ${f.name.trim()} แล้ว`);
+      setF(blank);
+      setUsernameTouched(false);
     } catch (err) {
       setError(message(err));
     }
@@ -76,36 +119,53 @@ function AddUser({ onSaved }: { onSaved: (note: string) => void }) {
 
   return (
     <Section title="เพิ่มผู้ใช้">
-      <form onSubmit={submit} className="grid-3">
-        <Field label={GAS_MODE ? 'อีเมล Google ของผู้ใช้' : 'ชื่อผู้ใช้'} htmlFor="ue">
-          <input id="ue" type={GAS_MODE ? 'email' : 'text'} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={GAS_MODE ? 'name@gmail.com' : 'pharm3'} />
-        </Field>
-        <Field label="ชื่อที่แสดง" htmlFor="un">
-          <input id="un" value={name} onChange={(e) => setName(e.target.value)} placeholder="ภก./ภญ. ชื่อ นามสกุล" />
-        </Field>
-        <Field label="สิทธิ์" htmlFor="ur">
-          <select id="ur" value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            {ROLES.map((r) => <option key={r} value={r}>{LABELS.role[r]}</option>)}
-          </select>
-          <span className="muted" style={{ fontSize: '0.85rem' }}>{ROLE_HELP[role]}</span>
-        </Field>
-        <Field label="ชื่อผู้ใช้สำหรับเข้าระบบ" htmlFor="ulog">
-          <input id="ulog" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="เช่น pharm.somsri" />
-        </Field>
-        <Field label="รหัสผ่าน (อย่างน้อย 6 ตัว)" htmlFor="upw">
-          <input id="upw" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </Field>
-        <Field label="ยืนยันรหัสผ่าน" htmlFor="upw2">
-          <input id="upw2" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-        </Field>
-        <div className="row" style={{ gridColumn: '1 / -1' }}>
-          <button className="btn" disabled={save.isPending || !email}>{save.isPending ? 'กำลังบันทึก…' : 'เพิ่มผู้ใช้'}</button>
+      <form onSubmit={submit} noValidate>
+        <div className="grid-2">
+          <Field label="ชื่อ-นามสกุล" htmlFor="un">
+            <input id="un" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="ภก./ภญ. ชื่อ นามสกุล" />
+          </Field>
+          <Field label={GAS_MODE ? 'อีเมล Google' : 'ชื่อผู้ใช้'} htmlFor="ue">
+            <input
+              id="ue"
+              type={GAS_MODE ? 'email' : 'text'}
+              value={f.email}
+              placeholder={GAS_MODE ? 'name@gmail.com' : 'pharm3'}
+              onChange={(e) => {
+                const email = e.target.value;
+                setF({ ...f, email, username: GAS_MODE && !usernameTouched ? usernameFromEmail(email) : f.username });
+              }}
+            />
+          </Field>
+          {GAS_MODE && (
+            <Field label="ชื่อผู้ใช้สำหรับเข้าระบบ" htmlFor="ulog">
+              <input
+                id="ulog"
+                autoComplete="off"
+                value={f.username}
+                placeholder="ตั้งให้อัตโนมัติจากอีเมล"
+                onChange={(e) => {
+                  setUsernameTouched(true);
+                  setF({ ...f, username: e.target.value });
+                }}
+              />
+            </Field>
+          )}
+          <Field label="รหัสผ่าน (อย่างน้อย 6 ตัว)" htmlFor="upw">
+            <PasswordInput id="upw" value={f.password} onChange={(password) => setF({ ...f, password })} />
+          </Field>
+          <Field label="สิทธิ์">
+            <RolePicker name="new-role" value={f.role} onChange={(role) => setF({ ...f, role })} />
+          </Field>
+        </div>
+        <div className="row" style={{ marginTop: 14 }}>
+          <button className="btn" disabled={save.isPending}>{save.isPending ? 'กำลังบันทึก…' : 'เพิ่มผู้ใช้'}</button>
           {error && <span className="down">{error}</span>}
+          {added && <span className="up">{added}</span>}
         </div>
         {GAS_MODE && (
-          <p className="muted" style={{ gridColumn: '1 / -1', margin: 0, fontSize: '0.9rem' }}>
-            ระบบจะแชร์ Sheet ให้อีเมลนี้เป็นผู้แก้ไขให้อัตโนมัติ ผู้ใช้เข้าด้วยบัญชี Google ของตัวเอง แล้วใส่ชื่อผู้ใช้และรหัสผ่านที่ตั้งไว้ที่นี่
-            (ถ้าเว้นว่าง จะใช้ชื่อผู้ใช้และรหัสผ่านของคลินิกแทน)
+          <p className="muted" style={{ margin: '10px 0 0', fontSize: '0.9rem' }}>
+            ระบบจะแชร์ Sheet ให้อีเมลนี้อัตโนมัติ ผู้ใช้เข้าด้วยบัญชี Google ของตัวเอง แล้วใส่ชื่อผู้ใช้และรหัสผ่านที่ตั้งไว้ที่นี่
+            (ถ้าไม่ตั้งรหัสผ่าน จะใช้ชื่อผู้ใช้และรหัสผ่านของคลินิกแทน)
           </p>
         )}
       </form>
@@ -113,21 +173,62 @@ function AddUser({ onSaved }: { onSaved: (note: string) => void }) {
   );
 }
 
+function EditUser({ u, self, onSaved, onClose }: { u: ManagedUser; self: boolean; onSaved: (note: string) => void; onClose: () => void }) {
+  const [f, setF] = useState({
+    name: u.displayName,
+    role: u.role,
+    username: u.username || (GAS_MODE ? usernameFromEmail(u.email) : ''),
+    password: '',
+  });
+  const [error, setError] = useState('');
+  const save = useSaveUser(onSaved);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!f.name.trim()) return setError('กรุณากรอกชื่อ-นามสกุล');
+    const problem = checkCredentials(f.username, f.password);
+    if (problem) return setError(problem);
+    try {
+      await save.mutateAsync({ ...u, displayName: f.name, role: f.role, username: GAS_MODE ? f.username : u.username, password: f.password });
+      onClose();
+    } catch (err) {
+      setError(message(err));
+    }
+  }
+
+  return (
+    <form onSubmit={submit} noValidate style={{ marginTop: 10, fontWeight: 400 }}>
+      <div className="grid-2">
+        <Field label="ชื่อ-นามสกุล" htmlFor={`en-${u.email}`}>
+          <input id={`en-${u.email}`} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        </Field>
+        {GAS_MODE && (
+          <Field label="ชื่อผู้ใช้สำหรับเข้าระบบ" htmlFor={`eu-${u.email}`}>
+            <input id={`eu-${u.email}`} autoComplete="off" value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} />
+          </Field>
+        )}
+        <Field label="รหัสผ่านใหม่" htmlFor={`ep-${u.email}`}>
+          <PasswordInput id={`ep-${u.email}`} value={f.password} onChange={(password) => setF({ ...f, password })} placeholder="เว้นว่างถ้าไม่เปลี่ยน" />
+        </Field>
+        <Field label="สิทธิ์">
+          <RolePicker name={`role-${u.email}`} value={f.role} disabled={self} onChange={(role) => setF({ ...f, role })} />
+        </Field>
+      </div>
+      <div className="row" style={{ marginTop: 12 }}>
+        <button className="btn small" disabled={save.isPending}>{save.isPending ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข'}</button>
+        <button type="button" className="btn secondary small" onClick={onClose}>ยกเลิก</button>
+        {error && <span className="down">{error}</span>}
+      </div>
+    </form>
+  );
+}
+
 function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved: (note: string) => void }) {
   const qc = useQueryClient();
   const [error, setError] = useState('');
-  const save = useMutation({
-    mutationFn: (next: ManagedUser) => api<{ users: ManagedUser[]; note: string }>('/admin/users', { method: 'POST', json: next }),
-    onSuccess: (res) => {
-      qc.setQueryData(['admin-users'], { users: [...res.users] });
-      onSaved(res.note);
-    },
-    onError: (err) => setError(message(err)),
-  });
-  const update = (patch: Partial<ManagedUser>) => {
-    setError('');
-    save.mutate({ ...u, ...patch });
-  };
+  const [editing, setEditing] = useState(false);
+  const save = useSaveUser(onSaved);
   const remove = useMutation({
     mutationFn: () => api<{ users: ManagedUser[]; note: string }>('/admin/users/delete', { method: 'POST', json: { email: u.email } }),
     onSuccess: (res) => {
@@ -136,101 +237,68 @@ function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved:
     },
     onError: (err) => setError(message(err)),
   });
-  const [setting, setSetting] = useState(false);
-  const [login, setLogin] = useState({ username: u.username ?? '', password: '', confirm: '' });
-
-  async function savePassword(e: FormEvent) {
-    e.preventDefault();
-    setError('');
-    const problem = login.password ? checkCredentials(login.username, login.password, login.confirm) : 'กรุณาใส่รหัสผ่านใหม่';
-    if (problem) {
-      setError(problem);
-      return;
-    }
-    try {
-      await save.mutateAsync({ ...u, username: login.username, password: login.password });
-      setSetting(false);
-      setLogin({ username: login.username, password: '', confirm: '' });
-    } catch {
-      /* message shown by onError */
-    }
-  }
 
   return (
     <tr style={u.active ? undefined : { color: 'var(--ink-soft)' }}>
-      <td className="lead">
+      <td className="lead" colSpan={editing ? 4 : 1}>
         {u.displayName}
         {self && <span className="muted"> (คุณ)</span>}
         <div className="muted" style={{ fontSize: '0.85rem', fontWeight: 400, wordBreak: 'break-all' }}>{u.email}</div>
-        <div style={{ fontSize: '0.85rem', fontWeight: 400 }}>
-          {u.hasPassword ? (
-            <>เข้าระบบด้วย <b>{u.username}</b> และรหัสผ่านของตัวเอง</>
-          ) : (
-            <span className="muted">ใช้ชื่อผู้ใช้และรหัสผ่านของคลินิก</span>
-          )}
-        </div>
-        {setting && (
-          <form onSubmit={savePassword} className="row" style={{ marginTop: 8, alignItems: 'flex-end' }}>
-            <Field label="ชื่อผู้ใช้" htmlFor={`lu-${u.email}`}>
-              <input id={`lu-${u.email}`} autoComplete="off" value={login.username} onChange={(e) => setLogin({ ...login, username: e.target.value })} />
-            </Field>
-            <Field label="รหัสผ่านใหม่" htmlFor={`lp-${u.email}`}>
-              <input id={`lp-${u.email}`} type="password" autoComplete="new-password" value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} />
-            </Field>
-            <Field label="ยืนยันรหัสผ่าน" htmlFor={`lc-${u.email}`}>
-              <input id={`lc-${u.email}`} type="password" autoComplete="new-password" value={login.confirm} onChange={(e) => setLogin({ ...login, confirm: e.target.value })} />
-            </Field>
-            <button className="btn small" disabled={save.isPending}>บันทึกรหัสผ่าน</button>
-            <button type="button" className="btn secondary small" onClick={() => setSetting(false)}>ยกเลิก</button>
-          </form>
+        {GAS_MODE && (
+          <div style={{ fontSize: '0.85rem', fontWeight: 400 }}>
+            {u.hasPassword ? <>เข้าระบบด้วย <b>{u.username}</b></> : <span className="muted">ใช้ชื่อผู้ใช้และรหัสผ่านของคลินิก</span>}
+          </div>
         )}
+        {editing && <EditUser u={u} self={self} onSaved={onSaved} onClose={() => setEditing(false)} />}
         {error && <div className="down" style={{ fontSize: '0.85rem' }}>{error}</div>}
       </td>
-      <td data-label="สิทธิ์">
-        <select
-          aria-label={`สิทธิ์ของ ${u.displayName}`}
-          value={u.role}
-          disabled={self || save.isPending}
-          onChange={(e) => update({ role: e.target.value as Role })}
-          style={{ font: 'inherit', padding: 6 }}
-        >
-          {ROLES.map((r) => <option key={r} value={r}>{LABELS.role[r]}</option>)}
-        </select>
-      </td>
-      <td data-label="สถานะ">{u.active ? <span className="up">ใช้งานได้</span> : 'ระงับแล้ว'}</td>
-      <td data-label="">
-        {!setting && (
-          <button className="btn secondary small" style={{ marginRight: 6 }} onClick={() => setSetting(true)}>
-            {u.hasPassword ? 'เปลี่ยนรหัสผ่าน' : 'ตั้งรหัสผ่าน'}
-          </button>
-        )}
-        {!self && (
-          <button
-            className="btn secondary small"
-            disabled={save.isPending}
-            onClick={() => {
-              if (!u.active || window.confirm(`ระงับการใช้งานของ ${u.displayName}?`)) update({ active: !u.active });
-            }}
-          >
-            {u.active ? 'ระงับการใช้งาน' : 'เปิดใช้งานอีกครั้ง'}
-          </button>
-        )}
-        {!self && (
-          <button
-            className="btn secondary small danger"
-            style={{ marginLeft: 6 }}
-            disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm(`ลบผู้ใช้ ${u.displayName} (${u.email})?\nคนนี้จะเข้าระบบไม่ได้อีก ข้อมูลที่เคยบันทึกไว้ยังอยู่ครบ`)) {
-                setError('');
-                remove.mutate();
-              }
-            }}
-          >
-            {remove.isPending ? 'กำลังลบ…' : 'ลบ'}
-          </button>
-        )}
-      </td>
+      {!editing && (
+        <>
+          <td data-label="สิทธิ์">{LABELS.role[u.role]}</td>
+          <td data-label="สถานะ">{u.active ? <span className="up">ใช้งานได้</span> : 'ระงับแล้ว'}</td>
+          <td data-label="">
+            <span className="row-actions">
+              <button
+                className="btn secondary small"
+                onClick={() => {
+                  setError('');
+                  setEditing(true);
+                }}
+              >
+                แก้ไข
+              </button>
+              {!self && (
+                <button
+                  className="btn secondary small"
+                  disabled={save.isPending}
+                  onClick={() => {
+                    if (!u.active || window.confirm(`ระงับการใช้งานของ ${u.displayName}?`)) {
+                      setError('');
+                      save.mutate({ ...u, active: !u.active }, { onError: (err) => setError(message(err)) });
+                    }
+                  }}
+                >
+                  {u.active ? 'ระงับการใช้งาน' : 'เปิดใช้งานอีกครั้ง'}
+                </button>
+              )}
+              {!self && (
+                <button
+                  className="btn secondary small danger"
+                  disabled={remove.isPending}
+                  onClick={() => {
+                    if (window.confirm(`ลบผู้ใช้ ${u.displayName} (${u.email})?\nคนนี้จะเข้าระบบไม่ได้อีก ข้อมูลที่เคยบันทึกไว้ยังอยู่ครบ`)) {
+                      setError('');
+                      remove.mutate();
+                    }
+                  }}
+                >
+                  {remove.isPending ? 'กำลังลบ…' : 'ลบ'}
+                </button>
+              )}
+            </span>
+          </td>
+        </>
+      )}
     </tr>
   );
 }
@@ -294,7 +362,7 @@ export function Users() {
       <div className="page-head">
         <div>
           <h1>จัดการผู้ใช้</h1>
-          <p className="muted" style={{ margin: 0 }}>เพิ่มเจ้าหน้าที่ กำหนดสิทธิ์ และระงับการใช้งาน การเปลี่ยนแปลงทุกครั้งถูกบันทึกไว้</p>
+          <p className="muted" style={{ margin: 0 }}>เพิ่มเจ้าหน้าที่ แล้วกด "แก้ไข" เพื่อเปลี่ยนชื่อ สิทธิ์ หรือรหัสผ่าน การเปลี่ยนแปลงทุกครั้งถูกบันทึกไว้</p>
         </div>
       </div>
       {note && <div className="alert" role="alert" style={{ marginTop: 14 }}>{note}</div>}

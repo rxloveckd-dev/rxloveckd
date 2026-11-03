@@ -111,7 +111,7 @@ function seed(): Store {
     users: [
       { id: 'u1', username: 'pharm1', displayName: 'ภก.สมหมาย ดูแลไต', role: 'pharmacist', password: 'demo1234' },
       { id: 'u2', username: 'pharm2', displayName: 'ภญ.วรรณา รักษ์ไต', role: 'pharmacist', password: 'demo1234' },
-      { id: 'u3', username: 'super1', displayName: 'ภญ.หัวหน้า เขาชัยสน', role: 'supervisor', password: 'demo1234' },
+      { id: 'u3', username: 'super1', displayName: 'ภญ.วิไล เขาชัยสน', role: 'supervisor', password: 'demo1234' },
       { id: 'u4', username: 'admin1', displayName: 'ผู้ดูแลระบบ', role: 'admin', password: 'demo1234' },
     ],
     session: null,
@@ -393,12 +393,12 @@ const routes: [string, RegExp, Handler][] = [
     return { ok: true };
   }],
   ['GET', /^\/admin\/users$/, () => {
-    if (me().role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะหัวหน้าเภสัชกรที่จัดการผู้ใช้ได้');
+    if (me().role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะเภสัชคลินิกที่จัดการผู้ใช้ได้');
     return { users: store.users.map((u) => ({ email: u.username, displayName: u.displayName, role: u.role, active: u.active !== false })) };
   }],
   ['POST', /^\/admin\/users$/, (_m, body) => {
     const current = me();
-    if (current.role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะหัวหน้าเภสัชกรที่จัดการผู้ใช้ได้');
+    if (current.role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะเภสัชคลินิกที่จัดการผู้ใช้ได้');
     const b = (body ?? {}) as { email?: string; displayName?: string; role?: string; active?: boolean; password?: string };
     const email = String(b.email ?? '').trim().toLowerCase();
     if (b.password && b.password.length < 6) throw new MockHttpError(400, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัว');
@@ -419,7 +419,7 @@ const routes: [string, RegExp, Handler][] = [
   }],
   ['POST', /^\/admin\/users\/delete$/, (_m, body) => {
     const current = me();
-    if (current.role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะหัวหน้าเภสัชกรที่จัดการผู้ใช้ได้');
+    if (current.role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะเภสัชคลินิกที่จัดการผู้ใช้ได้');
     const email = String((body as { email?: string })?.email ?? '').trim().toLowerCase();
     if (email === current.username) throw new MockHttpError(400, 'ไม่สามารถลบบัญชีของตัวเองได้');
     const i = store.users.findIndex((u) => u.username === email);
@@ -471,7 +471,7 @@ const routes: [string, RegExp, Handler][] = [
     return { patient: profile(p) };
   }],
   ['DELETE', /^\/patients\/([^/]+)$/, (m) => {
-    if (clinical().role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะหัวหน้าเภสัชกรที่ลบผู้ป่วยได้');
+    if (clinical().role !== 'supervisor') throw new MockHttpError(403, 'เฉพาะเภสัชคลินิกที่ลบผู้ป่วยได้');
     const id = patientOr404(m[1]!).id;
     for (const t of ['drps', 'medications', 'labs', 'visits'] as const) remove(t, (r) => r.patientId === id);
     remove('patients', (r) => r.id === id);

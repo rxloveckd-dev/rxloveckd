@@ -18,7 +18,7 @@ npm run db:setup                          # สร้างฐานข้อม
 npm run dev                               # API :4000, เว็บ http://localhost:5173
 ```
 
-บัญชีทดลอง (รหัสผ่าน `demo1234`): `pharm1`, `pharm2` (เภสัชกร), `super1` (หัวหน้าเภสัชกร),
+บัญชีทดลอง (รหัสผ่าน `demo1234`): `pharm1`, `pharm2` (เภสัชกร), `super1` (เภสัชคลินิก),
 `admin1` (ผู้ดูแลระบบ ดูข้อมูลผู้ป่วยไม่ได้)
 
 ## เวอร์ชันทดลองออนไลน์ (GitHub Pages + Google Sheets)

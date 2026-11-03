@@ -50,7 +50,7 @@ export function App() {
     // Google account is allowed; now the clinic username/password (set once by a supervisor).
     const setup = !me.data.loginConfigured;
     if (setup && me.data.user.role !== 'supervisor') {
-      return <NoAccess error={new ApiError(403, 'ยังไม่ได้ตั้งรหัสผ่านเข้าระบบ กรุณาให้หัวหน้าเภสัชกรเปิดระบบครั้งแรก')} />;
+      return <NoAccess error={new ApiError(403, 'ยังไม่ได้ตั้งรหัสผ่านเข้าระบบ กรุณาให้เภสัชคลินิกเปิดระบบครั้งแรก')} />;
     }
     return <Login setup={setup} />;
   }

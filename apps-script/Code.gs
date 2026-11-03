@@ -110,7 +110,7 @@ function startSession() {
 /** First run only: a supervisor sets the username and password. */
 function setLogin(username, password) {
   const user = requireAllowedEmail();
-  if (user.role !== 'supervisor') throw new Error('เฉพาะหัวหน้าเภสัชกรที่ตั้งรหัสผ่านได้');
+  if (user.role !== 'supervisor') throw new Error('เฉพาะเภสัชคลินิกที่ตั้งรหัสผ่านได้');
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -177,7 +177,7 @@ function requireAllowedEmail() {
   });
   if (!user) {
     audit(email, 'denied', 'app', '', 'denied');
-    throw new Error('บัญชี ' + email + ' ยังไม่มีสิทธิ์ใช้งาน กรุณาติดต่อหัวหน้าเภสัชกร');
+    throw new Error('บัญชี ' + email + ' ยังไม่มีสิทธิ์ใช้งาน กรุณาติดต่อเภสัชคลินิก');
   }
   return { id: email, username: email, displayName: String(user.displayName || email).trim(), role: String(user.role).trim() };
 }
@@ -199,7 +199,7 @@ const ROLES = ['pharmacist', 'supervisor', 'admin'];
 
 function requireSupervisor() {
   const user = requireUser(false);
-  if (user.role !== 'supervisor') throw new Error('เฉพาะหัวหน้าเภสัชกรที่จัดการผู้ใช้ได้');
+  if (user.role !== 'supervisor') throw new Error('เฉพาะเภสัชคลินิกที่จัดการผู้ใช้ได้');
   return user;
 }
 
@@ -412,7 +412,7 @@ function writeOps(ops) {
         if (DATA_TABLES.indexOf(op.table) < 0) throw new Error('ตารางไม่ถูกต้อง');
         if (op.table === 'patients' && user.role !== 'supervisor') {
           audit(user.id, 'denied', 'patients', op.row.id, 'denied');
-          throw new Error('เฉพาะหัวหน้าเภสัชกรที่ลบผู้ป่วยได้');
+          throw new Error('เฉพาะเภสัชคลินิกที่ลบผู้ป่วยได้');
         }
         (deletes[op.table] = deletes[op.table] || {})[op.row.id] = true;
         return;
