@@ -420,3 +420,67 @@ td.num, th.num { text-align: right; }
   .side a { flex-direction: column; justify-content: center; gap: 4px; padding: 6px 4px; font-size: 0.85rem; }
   .nav-ic { width: 30px; height: 30px; border-radius: 10px; }
 }
+
+/* ---------- login: livelier art, icon tiles, friendlier form */
+.login-hero { position: relative; overflow: hidden; }
+.login-hero::before, .login-hero::after { content: ''; position: absolute; border-radius: 50%; pointer-events: none; }
+.login-hero::before { width: 360px; height: 360px; right: -160px; top: -140px; background: none; border: 2px dashed rgba(255, 226, 122, 0.18); }
+.login-hero::after { width: 220px; height: 220px; left: -80px; bottom: -70px; background: rgba(124, 196, 255, 0.10); }
+.login-hero > * { position: relative; }
+.login-art { width: min(420px, 100%); }
+
+.la-bob { animation: la-bob 3.2s ease-in-out infinite; }
+.la-late { animation-delay: -1.6s; }
+.la-blink { animation: la-blink 5s infinite; transform-box: fill-box; transform-origin: center; }
+.la-beat { animation: la-beat 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.la-float { animation: la-float 6s ease-in-out infinite; }
+.la-twinkle { animation: la-twinkle 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.la-ring { animation: la-spin 40s linear infinite; transform-box: fill-box; transform-origin: center; }
+.la-pulse { stroke-dasharray: 420; animation: la-draw 3.5s ease-in-out infinite; }
+@keyframes la-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes la-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes la-beat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.18); } 30% { transform: scale(1); } 45% { transform: scale(1.12); } }
+@keyframes la-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes la-twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes la-spin { to { transform: rotate(360deg); } }
+@keyframes la-draw { 0% { stroke-dashoffset: 420; } 60%, 100% { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .la-bob, .la-blink, .la-beat, .la-float, .la-twinkle, .la-ring, .la-pulse { animation: none; }
+  .la-pulse { stroke-dasharray: none; }
+}
+
+.feature-ic {
+  flex: none; width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center;
+  color: #1f2a44; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.1);
+}
+.feature-ic.yellow { background: #ffe08a; }
+.feature-ic.pink { background: #ffc4c4; }
+.feature-ic.lilac { background: #d9c7ff; }
+.login-features li { align-items: center; }
+
+.login-panel {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(31, 42, 68, 0.08) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--paper);
+}
+.login-form {
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 18px;
+  padding: 30px 28px 18px; box-shadow: 0 18px 40px -24px rgba(31, 42, 68, 0.35);
+}
+.login-hello {
+  justify-self: start; display: inline-flex; align-items: center; gap: 6px;
+  background: #ffe9ec; color: #b0414b; font-weight: 600; font-size: 0.9rem;
+  padding: 4px 12px; border-radius: 999px;
+}
+.with-ic { position: relative; display: flex; }
+.with-ic > .icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-soft); pointer-events: none; }
+.login-form .with-ic input { padding-left: 40px; flex: 1; }
+.password .reveal { display: inline-flex; align-items: center; gap: 4px; }
+.login-submit { border-radius: 12px; }
+.app-version { margin: 6px 0 0; text-align: center; font-size: 0.8rem; color: var(--ink-soft); display: grid; }
+.app-version span { font-size: 0.75rem; opacity: 0.8; }
+.side-version { display: block; margin-top: 10px; color: #9aa4c0; font-size: 0.75rem; }
+@media (max-width: 860px) {
+  .login-art { width: 240px; }
+  .login-form { padding: 24px 20px 14px; }
+}

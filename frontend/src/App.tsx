@@ -12,6 +12,7 @@ import { VisitNew } from './pages/VisitNew';
 import { Reports } from './pages/Reports';
 import { Users } from './pages/Users';
 import { Icon } from './components/Icon';
+import { BUILD_LABEL, VERSION_LABEL } from './version';
 
 function KidneyMark() {
   return (
@@ -103,6 +104,7 @@ export function App() {
           </span>
           {GAS_MODE && <small style={{ wordBreak: 'break-all', display: 'block' }}>{user.username}</small>}
           <button className="btn secondary small" onClick={logout}><Icon name="logout" />ออกจากระบบ</button>
+          <small className="side-version" title={BUILD_LABEL}>{VERSION_LABEL}</small>
         </div>
       </nav>
       <div>

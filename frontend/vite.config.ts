@@ -1,6 +1,17 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+/** Version shown in the app: package.json version, plus the commit and date of this build. */
+const appVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')).version as string;
+let commit = '';
+try {
+  commit = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+} catch {
+  /* not a git checkout */
+}
 
 // Modes:
 //   (default)  dev/production build talking to the Express API
@@ -10,6 +21,9 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig(({ mode }) => ({
   base: mode === 'pages' ? '/rxloveckd/demo/' : mode === 'gas' ? './' : '/',
   define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __APP_COMMIT__: JSON.stringify(commit),
+    __APP_BUILT__: JSON.stringify(new Date().toISOString()),
     'import.meta.env.VITE_STATIC_DEMO': JSON.stringify(mode === 'pages' ? 'true' : 'false'),
     'import.meta.env.VITE_GAS': JSON.stringify(mode === 'gas' ? 'true' : 'false'),
     // Optional trial Sheet for the public demo; never point this at the clinic's real Sheet.
