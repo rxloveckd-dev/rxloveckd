@@ -1,4 +1,5 @@
-import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LABELS } from '@rx/shared';
 import { api, ApiError, GAS_MODE, STATIC_DEMO, useMe } from './api';
@@ -45,6 +46,8 @@ export function App() {
   const me = useMe();
   const qc = useQueryClient();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   if (me.isLoading) return <Loading />;
   if (GAS_MODE && (me.isError || !me.data)) return <NoAccess error={me.error} />;
@@ -64,12 +67,27 @@ export function App() {
   const canManageUsers = user.role === 'supervisor' && (GAS_MODE || STATIC_DEMO);
 
   async function logout() {
-    await api('/auth/logout', { method: 'POST' });
+    setLoggingOut(true);
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } catch {
+      /* show the login page anyway; the server session also expires on its own */
+    }
+    // Next sign-in starts at "งานวันนี้", not the page that was open.
+    navigate('/', { replace: true });
     // Drop patient data from memory, then mark the user as signed out so <App> shows the login page.
     // (qc.clear() alone leaves mounted queries showing their last result.)
     qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
-    if (GAS_MODE) await qc.invalidateQueries({ queryKey: ['me'] }); // still the same Google account, now signed out
-    else qc.setQueryData(['me'], null);
+    if (GAS_MODE) {
+      // Still the same Google account, now signed out: show the login page straight away,
+      // then confirm with the server (which reports signedIn: false).
+      const me = qc.getQueryData<{ signedIn?: boolean }>(['me']);
+      if (me) qc.setQueryData(['me'], { ...me, signedIn: false });
+      await qc.invalidateQueries({ queryKey: ['me'] });
+    } else {
+      qc.setQueryData(['me'], null);
+    }
+    setLoggingOut(false);
   }
 
   return (
@@ -103,7 +121,10 @@ export function App() {
             <br />
           </span>
           {GAS_MODE && <small style={{ wordBreak: 'break-all', display: 'block' }}>{user.username}</small>}
-          <button className="btn secondary small" onClick={logout}><Icon name="logout" />ออกจากระบบ</button>
+          <button className="btn secondary small" onClick={logout} disabled={loggingOut}>
+            <Icon name="logout" />
+            {loggingOut ? 'กำลังออกจากระบบ…' : 'ออกจากระบบ'}
+          </button>
           <small className="side-version" title={BUILD_LABEL}>{VERSION_LABEL}</small>
         </div>
       </nav>
