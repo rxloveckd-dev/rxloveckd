@@ -16,6 +16,7 @@ import {
 import { ApiError, useMe, usePatient, usePatientList, usePatientMutation, type PatientProfile as PatientProfileData } from '../api';
 import { Choice, Empty, ErrorState, Field, Loading, RowActions, Section, Stage, Urgency } from '../components/ui';
 import { num, pct, thDate, todayIso } from '../format';
+import { Icon } from '../components/Icon';
 
 interface VisitRow {
   id: string;
@@ -186,8 +187,8 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
 function FormButtons({ busy, error, onCancel, label = 'บันทึกการแก้ไข' }: { busy: boolean; error: string; onCancel?: () => void; label?: string }) {
   return (
     <div className="row" style={{ marginTop: 12 }}>
-      <button className="btn small" disabled={busy}>{busy ? 'กำลังบันทึก…' : label}</button>
-      {onCancel && <button type="button" className="btn secondary small" onClick={onCancel}>ยกเลิก</button>}
+      <button className="btn small" disabled={busy}><Icon name="save" />{busy ? 'กำลังบันทึก…' : label}</button>
+      {onCancel && <button type="button" className="btn secondary small" onClick={onCancel}><Icon name="x" />ยกเลิก</button>}
       {error && <span className="down">{error}</span>}
     </div>
   );
@@ -464,6 +465,7 @@ function Medications({ id }: { id: string }) {
                             update.mutate({ medId: m.id, status: m.status === 'active' ? 'stopped' : 'active' }, { onError });
                           }}
                         >
+                          <Icon name="pill" />
                           {m.status === 'active' ? 'บันทึกว่าหยุดยา' : 'กลับมาใช้'}
                         </button>
                         <RowActions
@@ -515,7 +517,7 @@ function DrpDecision({ patientId, drp }: { patientId: string; drp: DrpRow }) {
         <option value="declined">ไม่ยอมรับ</option>
       </select>
       <input aria-label="เหตุผลของแพทย์" placeholder="เหตุผลของแพทย์" value={reason} onChange={(e) => setReason(e.target.value)} style={{ font: 'inherit', padding: 6, flex: 1 }} />
-      <button className="btn small" disabled={save.isPending}>บันทึกผลจากแพทย์</button>
+      <button className="btn small" disabled={save.isPending}><Icon name="stethoscope" />บันทึกผลจากแพทย์</button>
       {error && <span className="down">{error}</span>}
     </form>
   );
@@ -663,7 +665,7 @@ function DischargePanel({ p }: { p: PatientProfileData }) {
             if (window.confirm('ยกเลิกการจำหน่าย และกลับมาติดตามผู้ป่วยรายนี้ต่อ?')) reactivate.mutate({});
           }}
         >
-          ยกเลิกการจำหน่าย
+          <Icon name="undo" />ยกเลิกการจำหน่าย
         </button>
       </div>
     );
@@ -672,7 +674,7 @@ function DischargePanel({ p }: { p: PatientProfileData }) {
   if (!open) {
     return (
       <div style={{ marginTop: 12 }}>
-        <button className="btn secondary small" onClick={() => setOpen(true)}>จำหน่ายผู้ป่วย</button>
+        <button className="btn secondary small" onClick={() => setOpen(true)}><Icon name="door" />จำหน่ายผู้ป่วย</button>
       </div>
     );
   }
@@ -711,8 +713,8 @@ function DischargePanel({ p }: { p: PatientProfileData }) {
           <input id="dn" value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
         <div className="row" style={{ gridColumn: '1 / -1' }}>
-          <button className="btn" disabled={discharge.isPending}>{discharge.isPending ? 'กำลังบันทึก…' : 'บันทึกการจำหน่าย'}</button>
-          <button type="button" className="btn secondary" onClick={() => setOpen(false)}>ยกเลิก</button>
+          <button className="btn" disabled={discharge.isPending}><Icon name="save" />{discharge.isPending ? 'กำลังบันทึก…' : 'บันทึกการจำหน่าย'}</button>
+          <button type="button" className="btn secondary" onClick={() => setOpen(false)}><Icon name="x" />ยกเลิก</button>
           {error && <span className="down">{error}</span>}
         </div>
       </form>
@@ -750,7 +752,7 @@ export function PatientProfile() {
             </ul>
           )}
           <div className="row" style={{ marginTop: 12 }}>
-            <Link className="btn" to={`/patients/${p.id}/visits/new`}>บันทึกการติดตามครั้งใหม่</Link>
+            <Link className="btn" to={`/patients/${p.id}/visits/new`}><Icon name="clipboard" />บันทึกการติดตามครั้งใหม่</Link>
             <RowActions
               busy={removePatient.isPending}
               onEdit={() => navigate(`/patients/${p.id}/edit`)}

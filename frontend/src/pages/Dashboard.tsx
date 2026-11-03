@@ -6,6 +6,7 @@ import { ColumnChart, ShareBars, StackedBar, StatTile } from '../components/char
 import { ErrorState, Loading } from '../components/ui';
 import { num, thDate } from '../format';
 import type { MonthlySummary } from './Reports';
+import { Icon } from '../components/Icon';
 
 interface DashboardData {
   counts: {
@@ -69,7 +70,7 @@ export function Dashboard() {
           <h1>งานวันนี้</h1>
           <span className="date">{longDate.format(new Date())}</span>
         </div>
-        <Link className="btn" to="/patients/new">ลงทะเบียนผู้ป่วย</Link>
+        <Link className="btn" to="/patients/new"><Icon name="userPlus" />ลงทะเบียนผู้ป่วย</Link>
       </div>
 
       <div className="stats">

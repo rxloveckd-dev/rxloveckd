@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../api';
 import { Field } from '../components/ui';
+import { Icon } from '../components/Icon';
 
 /** Two kidneys with a pulse line and a pill, drawn in the clinic's colors. */
 function KidneyIllustration() {
@@ -152,6 +153,7 @@ export function Login({ setup = false }: { setup?: boolean }) {
           )}
           {error && <div className="alert" role="alert">{error}</div>}
           <button className="btn login-submit" disabled={busy || !username || !password}>
+            <Icon name="heart" />
             {busy ? 'กำลังบันทึก…' : setup ? 'บันทึกและเข้าสู่ระบบ' : 'เข้าสู่ระบบ'}
           </button>
         </form>

@@ -4,6 +4,7 @@ import { gfrChangePercent, LABELS, visitCreateSchema } from '@rx/shared';
 import { ApiError, usePatient, usePatientMutation } from '../api';
 import { Choice, ErrorState, Field, Loading, Section } from '../components/ui';
 import { num, pct, todayIso } from '../format';
+import { Icon } from '../components/Icon';
 
 interface MedDraft {
   drugName: string;
@@ -137,7 +138,7 @@ export function VisitNew() {
         </div>
       </Section>
 
-      <Section title="ยาผู้ป่วย" action={<button type="button" className="btn secondary small" onClick={() => setMeds([...meds, blankMed()])}>เพิ่มยา</button>}>
+      <Section title="ยาผู้ป่วย" action={<button type="button" className="btn secondary small" onClick={() => setMeds([...meds, blankMed()])}><Icon name="plus" />เพิ่มยา</button>}>
         <div className="grid-2" style={{ marginBottom: 14 }}>
           <Field label="ยากลุ่ม ACEI/ARB">
             <Choice name="aceiArb" value={aceiArb} options={[['yes', 'มี'], ['no', 'ไม่มี']]} onChange={setAceiArb} />
@@ -193,8 +194,8 @@ export function VisitNew() {
 
       {error && <div className="alert" role="alert" style={{ marginTop: 14 }}>{error}</div>}
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn" disabled={save.isPending}>{save.isPending ? 'กำลังบันทึก…' : 'บันทึกการติดตาม'}</button>
-        <button type="button" className="btn secondary" onClick={() => navigate(-1)}>ยกเลิก</button>
+        <button className="btn" disabled={save.isPending}><Icon name="save" />{save.isPending ? 'กำลังบันทึก…' : 'บันทึกการติดตาม'}</button>
+        <button type="button" className="btn secondary" onClick={() => navigate(-1)}><Icon name="x" />ยกเลิก</button>
       </div>
     </form>
   );

@@ -3,6 +3,7 @@ import { LABELS } from '@rx/shared';
 import { usePatients } from '../api';
 import { Empty, ErrorState, Loading, Stage, Urgency } from '../components/ui';
 import { num, pct, thDate } from '../format';
+import { Icon } from '../components/Icon';
 
 export function Patients() {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export function Patients() {
             <button aria-pressed={discharged} onClick={() => set('status', 'discharged')}>จำหน่ายแล้ว</button>
           </div>
         </div>
-        <Link className="btn" to="/patients/new">ลงทะเบียนผู้ป่วย</Link>
+        <Link className="btn" to="/patients/new"><Icon name="userPlus" />ลงทะเบียนผู้ป่วย</Link>
       </div>
 
       <div className="section row" role="search">
@@ -103,9 +104,9 @@ export function Patients() {
             <div className="row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
               <span className="muted">ทั้งหมด {data.total} คน</span>
               <div className="row">
-                <button className="btn secondary small" disabled={page <= 1} onClick={() => set('page', String(page - 1))}>ก่อนหน้า</button>
+                <button className="btn secondary small" disabled={page <= 1} onClick={() => set('page', String(page - 1))}><Icon name="left" />ก่อนหน้า</button>
                 <span>หน้า {page} / {pages}</span>
-                <button className="btn secondary small" disabled={page >= pages} onClick={() => set('page', String(page + 1))}>ถัดไป</button>
+                <button className="btn secondary small" disabled={page >= pages} onClick={() => set('page', String(page + 1))}>ถัดไป<Icon name="right" /></button>
               </div>
             </div>
           </>

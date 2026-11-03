@@ -4,6 +4,7 @@ import { LABELS, type MonthlySummary } from '@rx/shared';
 import { api, downloadMonthlyReport } from '../api';
 import { ColumnChart, CountUp, ShareBars, StackedBar } from '../components/charts';
 import { ErrorState, Loading } from '../components/ui';
+import { Icon } from '../components/Icon';
 
 export type { MonthlySummary };
 
@@ -73,11 +74,11 @@ export function Reports() {
               ▶
             </button>
             {month !== thisMonth && (
-              <button className="btn secondary small" onClick={() => setMonth(thisMonth)}>เดือนนี้</button>
+              <button className="btn secondary small" onClick={() => setMonth(thisMonth)}><Icon name="calendar" />เดือนนี้</button>
             )}
           </div>
         </div>
-        <button className="btn" onClick={() => downloadMonthlyReport(month)} disabled={!valid}>ดาวน์โหลด Excel</button>
+        <button className="btn" onClick={() => downloadMonthlyReport(month)} disabled={!valid}><Icon name="download" />ดาวน์โหลด Excel</button>
       </div>
 
       {isLoading ? (

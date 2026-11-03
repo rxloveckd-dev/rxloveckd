@@ -396,3 +396,27 @@ td.num, th.num { text-align: right; }
 .btn.danger { color: var(--red); border-color: #e9b4b4; }
 .btn.danger:hover { background: var(--red-bg); }
 .row-actions { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---------- icons on buttons and the menu */
+.icon { flex-shrink: 0; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn.small .icon { width: 1.05em; height: 1.05em; }
+/* Menu: each item has its own soft colored tile, so the icons read at a glance. */
+.side a { display: flex; align-items: center; gap: 12px; padding: 7px 10px; font-size: 1rem; transition: background 0.15s; }
+.nav-ic {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 11px;
+  display: grid; place-items: center; color: #1f2a44;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s;
+}
+.side a:hover .nav-ic { transform: translateY(-1px) rotate(-4deg); }
+.nav-ic.sun { background: #ffe08a; }
+.nav-ic.users { background: #a9d8ff; }
+.nav-ic.add { background: #b4ecc8; }
+.nav-ic.chart { background: #d9c7ff; }
+.nav-ic.shield { background: #ffc4c4; }
+.side a.active .nav-ic { background: #fff; box-shadow: 0 2px 6px rgba(31, 42, 68, 0.18); }
+@media (max-width: 640px) {
+  .side a { flex-direction: column; justify-content: center; gap: 4px; padding: 6px 4px; font-size: 0.85rem; }
+  .nav-ic { width: 30px; height: 30px; border-radius: 10px; }
+}

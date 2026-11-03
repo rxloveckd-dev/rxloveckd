@@ -5,6 +5,7 @@ import { ApiError, usePatient, usePatientMutation, type PatientProfile } from '.
 import { Choice, ErrorState, Field, Loading, Section } from '../components/ui';
 import { DateInput } from '../components/DateInput';
 import { todayIso } from '../format';
+import { Icon } from '../components/Icon';
 
 const EMPTY = {
   nationalId: '',
@@ -134,9 +135,10 @@ function PatientForm({ initial, patient }: { initial: FormState; patient?: Patie
       {errors.form && <div className="alert" role="alert" style={{ marginTop: 14 }}>{errors.form}</div>}
       <div className="row" style={{ marginTop: 18 }}>
         <button className="btn" disabled={save.isPending}>
+          <Icon name="save" />
           {save.isPending ? 'กำลังบันทึก…' : editing ? 'บันทึกการแก้ไข' : 'บันทึกผู้ป่วย'}
         </button>
-        <button type="button" className="btn secondary" onClick={() => navigate(-1)}>ยกเลิก</button>
+        <button type="button" className="btn secondary" onClick={() => navigate(-1)}><Icon name="x" />ยกเลิก</button>
       </div>
     </form>
   );

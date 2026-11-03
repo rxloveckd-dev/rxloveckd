@@ -1,4 +1,4 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LABELS } from '@rx/shared';
 import { api, ApiError, GAS_MODE, STATIC_DEMO, useMe } from './api';
@@ -11,6 +11,7 @@ import { PatientProfile } from './pages/PatientProfile';
 import { VisitNew } from './pages/VisitNew';
 import { Reports } from './pages/Reports';
 import { Users } from './pages/Users';
+import { Icon } from './components/Icon';
 
 function KidneyMark() {
   return (
@@ -42,6 +43,7 @@ function NoAccess({ error }: { error: unknown }) {
 export function App() {
   const me = useMe();
   const qc = useQueryClient();
+  const { pathname } = useLocation();
 
   if (me.isLoading) return <Loading />;
   if (GAS_MODE && (me.isError || !me.data)) return <NoAccess error={me.error} />;
@@ -81,11 +83,15 @@ export function App() {
         </div>
         {clinical && (
           <>
-            <NavLink to="/" end>งานวันนี้</NavLink>
-            <NavLink to="/patients">ผู้ป่วย</NavLink>
-            <NavLink to="/patients/new">ลงทะเบียนผู้ป่วย</NavLink>
-            <NavLink to="/reports">สรุปรายเดือน</NavLink>
-            {canManageUsers && <NavLink to="/users">จัดการผู้ใช้</NavLink>}
+            <NavLink to="/" end><span className="nav-ic sun"><Icon name="sun" size="18px" /></span>งานวันนี้</NavLink>
+            <NavLink
+              to="/patients"
+              // the register page has its own menu item, so don't light up both
+              className={({ isActive }) => (isActive && pathname !== '/patients/new' ? 'active' : undefined)}
+            ><span className="nav-ic users"><Icon name="users" size="18px" /></span>ผู้ป่วย</NavLink>
+            <NavLink to="/patients/new"><span className="nav-ic add"><Icon name="userPlus" size="18px" /></span>ลงทะเบียนผู้ป่วย</NavLink>
+            <NavLink to="/reports"><span className="nav-ic chart"><Icon name="chart" size="18px" /></span>สรุปรายเดือน</NavLink>
+            {canManageUsers && <NavLink to="/users"><span className="nav-ic shield"><Icon name="shield" size="18px" /></span>จัดการผู้ใช้</NavLink>}
           </>
         )}
         <div className="side-foot">
@@ -96,7 +102,7 @@ export function App() {
             <br />
           </span>
           {GAS_MODE && <small style={{ wordBreak: 'break-all', display: 'block' }}>{user.username}</small>}
-          <button className="btn secondary small" onClick={logout}>ออกจากระบบ</button>
+          <button className="btn secondary small" onClick={logout}><Icon name="logout" />ออกจากระบบ</button>
         </div>
       </nav>
       <div>

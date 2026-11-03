@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LABELS, type Role } from '@rx/shared';
 import { api, ApiError, GAS_MODE, useMe } from '../api';
 import { Empty, ErrorState, Field, Loading, Section } from '../components/ui';
+import { Icon } from '../components/Icon';
 
 interface ManagedUser {
   email: string;
@@ -52,7 +53,7 @@ function PasswordInput({ id, value, onChange, placeholder }: { id: string; value
         onChange={(e) => onChange(e.target.value)}
         style={{ flex: 1, minWidth: 0 }}
       />
-      <button type="button" className="btn secondary small" onClick={() => setShow(!show)}>{show ? 'ซ่อน' : 'แสดง'}</button>
+      <button type="button" className="btn secondary small" onClick={() => setShow(!show)}><Icon name={show ? 'eyeOff' : 'eye'} />{show ? 'ซ่อน' : 'แสดง'}</button>
     </div>
   );
 }
@@ -158,7 +159,7 @@ function AddUser({ onSaved }: { onSaved: (note: string) => void }) {
           </Field>
         </div>
         <div className="row" style={{ marginTop: 14 }}>
-          <button className="btn" disabled={save.isPending}>{save.isPending ? 'กำลังบันทึก…' : 'เพิ่มผู้ใช้'}</button>
+          <button className="btn" disabled={save.isPending}><Icon name="userPlus" />{save.isPending ? 'กำลังบันทึก…' : 'เพิ่มผู้ใช้'}</button>
           {error && <span className="down">{error}</span>}
           {added && <span className="up">{added}</span>}
         </div>
@@ -216,8 +217,8 @@ function EditUser({ u, self, onSaved, onClose }: { u: ManagedUser; self: boolean
         </Field>
       </div>
       <div className="row" style={{ marginTop: 12 }}>
-        <button className="btn small" disabled={save.isPending}>{save.isPending ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข'}</button>
-        <button type="button" className="btn secondary small" onClick={onClose}>ยกเลิก</button>
+        <button className="btn small" disabled={save.isPending}><Icon name="save" />{save.isPending ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข'}</button>
+        <button type="button" className="btn secondary small" onClick={onClose}><Icon name="x" />ยกเลิก</button>
         {error && <span className="down">{error}</span>}
       </div>
     </form>
@@ -265,7 +266,7 @@ function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved:
                   setEditing(true);
                 }}
               >
-                แก้ไข
+                <Icon name="edit" />แก้ไข
               </button>
               {!self && (
                 <button
@@ -278,6 +279,7 @@ function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved:
                     }
                   }}
                 >
+                  <Icon name={u.active ? 'pause' : 'play'} />
                   {u.active ? 'ระงับการใช้งาน' : 'เปิดใช้งานอีกครั้ง'}
                 </button>
               )}
@@ -292,6 +294,7 @@ function UserRow({ u, self, onSaved }: { u: ManagedUser; self: boolean; onSaved:
                     }
                   }}
                 >
+                  <Icon name="trash" />
                   {remove.isPending ? 'กำลังลบ…' : 'ลบ'}
                 </button>
               )}
@@ -339,7 +342,7 @@ function ChangePassword() {
         <Field label="รหัสผ่านใหม่" htmlFor="np"><input id="np" type="password" autoComplete="new-password" value={form.newPassword} onChange={set('newPassword')} /></Field>
         <Field label="ยืนยันรหัสผ่านใหม่" htmlFor="nc"><input id="nc" type="password" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} /></Field>
         <div className="row" style={{ gridColumn: '1 / -1' }}>
-          <button className="btn" disabled={change.isPending}>{change.isPending ? 'กำลังบันทึก…' : 'เปลี่ยนรหัสผ่าน'}</button>
+          <button className="btn" disabled={change.isPending}><Icon name="key" />{change.isPending ? 'กำลังบันทึก…' : 'เปลี่ยนรหัสผ่าน'}</button>
           {error && <span className="down">{error}</span>}
           {done && <span className="up">เปลี่ยนแล้ว แจ้งชื่อผู้ใช้และรหัสผ่านใหม่ให้ทีม</span>}
         </div>

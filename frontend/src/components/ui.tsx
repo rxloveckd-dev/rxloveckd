@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { LABELS, type UrgencyColor } from '@rx/shared';
 import { ApiError } from '../api';
+import { Icon } from './Icon';
 
 export function Section({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
@@ -100,7 +101,7 @@ export function RowActions({
   return (
     <span className="row-actions">
       {onEdit && (
-        <button type="button" className="btn secondary small" onClick={onEdit} disabled={busy}>แก้ไข</button>
+        <button type="button" className="btn secondary small" onClick={onEdit} disabled={busy}><Icon name="edit" />แก้ไข</button>
       )}
       {onDelete && (
         <button
@@ -111,7 +112,7 @@ export function RowActions({
             if (window.confirm(confirmText)) onDelete();
           }}
         >
-          ลบ
+          <Icon name="trash" />ลบ
         </button>
       )}
     </span>
