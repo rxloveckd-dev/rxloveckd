@@ -484,3 +484,22 @@ td.num, th.num { text-align: right; }
   .login-art { width: 240px; }
   .login-form { padding: 24px 20px 14px; }
 }
+
+/* ---------- date field: type digits or pick from the calendar */
+.date-input { position: relative; display: flex; }
+.date-input > input { flex: 1; min-width: 0; padding-right: 46px; }
+.date-pick {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+  color: var(--ink-soft); background: #eef1f6; overflow: hidden;
+}
+.date-pick:hover { background: var(--tab); color: var(--ink); }
+.date-pick input {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+  padding: 0; margin: 0; border: 0;
+}
+.date-pick input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; cursor: pointer; }
+
+/* ---------- multi-choice pills (checkboxes), e.g. CKD causes */
+.choice.multi label:has(input:checked)::before { content: '✓ '; }
+.other-input { margin-top: 8px; }

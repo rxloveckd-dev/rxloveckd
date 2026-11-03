@@ -24,7 +24,7 @@ describe('patients (US1)', () => {
   it('blocks duplicate national ID and duplicate HN (FR-002)', async () => {
     const pharm = await login('pharm');
     await pharm.post('/api/patients').send(patientBody()).expect(201);
-    const dupId = await pharm.post('/api/patients').send(patientBody({ hn: '999' }));
+    const dupId = await pharm.post('/api/patients').send(patientBody({ hn: '000000999' }));
     expect(dupId.status).toBe(409);
     expect(dupId.body.error.message).toBe('เลขบัตรประชาชนนี้ลงทะเบียนแล้ว');
     const dupHn = await pharm.post('/api/patients').send(patientBody({ nationalId: '3100600445813' }));

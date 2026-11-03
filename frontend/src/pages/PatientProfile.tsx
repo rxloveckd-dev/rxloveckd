@@ -743,7 +743,7 @@ export function PatientProfile() {
             <Urgency color={p.color} />
           </div>
           <p className="muted" style={{ margin: '4px 0 0' }}>
-            HN {p.hn}, เลขบัตร {p.nationalIdMasked}, อายุ {p.age} ปี, {LABELS.sex[p.sex]}, เข้าโครงการ {thDate(p.enrolledAt)}
+            HN {p.hn}, เลขบัตร {p.nationalIdMasked}, อายุ {p.age} ปี, {LABELS.sex[p.sex]}, เข้าคลินิก {thDate(p.enrolledAt)}
           </p>
           {delError && <div className="alert" role="alert" style={{ marginTop: 8 }}>{delError}</div>}
           {p.reasons.length > 0 && (

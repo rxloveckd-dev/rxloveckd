@@ -124,6 +124,15 @@ describe('edit and delete', () => {
     expect(edited.body.visit).toMatchObject({ medicationTakingDetail: null, dietDetail: null, seasoningDetail: null, leftoverMeds: 'Amlodipine 10 เม็ด' });
   });
 
+  it('expands the HN shorthand and rejects an HN that is not 9 digits', async () => {
+    const pharm = await login('pharm');
+    const ok = await pharm.post('/api/patients').send(patientBody({ hn: '45/70' })).expect(201);
+    expect(ok.body.patient.hn).toBe('450000070');
+    const bad = await pharm.post('/api/patients').send(patientBody({ hn: '4500070' }));
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.field).toBe('hn');
+  });
+
   it('returns 404 for records that do not exist', async () => {
     const { pharm } = await setup();
     expect((await pharm.delete('/api/labs/nope')).status).toBe(404);

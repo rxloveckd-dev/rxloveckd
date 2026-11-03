@@ -1,5 +1,6 @@
 export * from './domain/rules';
 export * from './domain/thaiId';
+export * from './domain/hn';
 export * from './domain/egfr';
 export * from './domain/gfr';
 export * from './domain/dataQuality';

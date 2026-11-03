@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { isValidThaiNationalId, patientCreateSchema, patientUpdateSchema } from '@rx/shared';
+import { HN_LENGTH, isValidHn, isValidThaiNationalId, normalizeHn, patientCreateSchema, patientUpdateSchema } from '@rx/shared';
 import { ApiError, usePatient, usePatientMutation, type PatientProfile } from '../api';
 import { Choice, ErrorState, Field, Loading, Section } from '../components/ui';
 import { DateInput } from '../components/DateInput';
@@ -33,6 +33,63 @@ const fromProfile = (p: PatientProfile): FormState => ({
   enrolledAt: p.enrolledAt.slice(0, 10),
   notes: p.notes ?? '',
 });
+
+const CAUSES = ['เบาหวาน', 'ความดัน', 'ไขมันในเลือด', 'ต่อมลูกหมาก', 'เก๊าท์', 'หัวใจ'] as const;
+
+/**
+ * สาเหตุโรคไต: pick any number of causes, plus "อื่นๆ" with free text. Stored as one text,
+ * e.g. "เบาหวาน, ความดัน, โรคไตอักเสบ", so older free-text values still load (as "อื่นๆ").
+ */
+function CausePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const tokens = value.split(/\s*,\s*/).filter(Boolean);
+  const picked = CAUSES.filter((c) => tokens.includes(c));
+  const otherText = tokens.filter((t) => !(CAUSES as readonly string[]).includes(t)).join(', ');
+  const [otherOn, setOtherOn] = useState(otherText !== '');
+  const [other, setOther] = useState(otherText);
+
+  const emit = (causes: readonly string[], on: boolean, text: string) =>
+    onChange([...CAUSES.filter((c) => causes.includes(c)), ...(on && text.trim() ? [text.trim()] : [])].join(', '));
+
+  return (
+    <>
+      <div className="choice multi">
+        {CAUSES.map((c) => (
+          <label key={c}>
+            <input
+              type="checkbox"
+              checked={picked.includes(c)}
+              onChange={(e) => emit(e.target.checked ? [...picked, c] : picked.filter((x) => x !== c), otherOn, other)}
+            />
+            {c}
+          </label>
+        ))}
+        <label>
+          <input
+            type="checkbox"
+            checked={otherOn}
+            onChange={(e) => {
+              setOtherOn(e.target.checked);
+              emit(picked, e.target.checked, other);
+            }}
+          />
+          อื่นๆ
+        </label>
+      </div>
+      {otherOn && (
+        <input
+          className="other-input"
+          aria-label="สาเหตุอื่น ระบุ"
+          placeholder="ระบุสาเหตุอื่น"
+          value={other}
+          onChange={(e) => {
+            setOther(e.target.value);
+            emit(picked, true, e.target.value);
+          }}
+        />
+      )}
+    </>
+  );
+}
 
 /** ลงทะเบียนผู้ป่วย (/patients/new) */
 export function PatientNew() {
@@ -98,8 +155,17 @@ function PatientForm({ initial, patient }: { initial: FormState; patient?: Patie
               </>
             )}
           </Field>
-          <Field label="HN" htmlFor="hn" error={errors.hn}>
-            <input id="hn" value={form.hn} onChange={(e) => set('hn')(e.target.value)} />
+          <Field label={`HN (ตัวเลข ${HN_LENGTH} หลัก)`} htmlFor="hn" error={errors.hn}>
+            <input
+              id="hn"
+              value={form.hn}
+              placeholder="เช่น 450000070 หรือพิมพ์ย่อ 45/70"
+              onChange={(e) => set('hn')(e.target.value.replace(/[^\d/]/g, ''))}
+              onBlur={() => isValidHn(normalizeHn(form.hn)) && set('hn')(normalizeHn(form.hn))}
+            />
+            {form.hn.includes('/') && isValidHn(normalizeHn(form.hn)) && (
+              <span className="up" style={{ fontSize: '0.85rem' }}>= {normalizeHn(form.hn)}</span>
+            )}
           </Field>
           <div className="name-row">
             <Field label="คำนำหน้า" htmlFor="title" error={errors.title}>
@@ -121,12 +187,14 @@ function PatientForm({ initial, patient }: { initial: FormState; patient?: Patie
           <Field label="วันเกิด" htmlFor="bd" error={errors.birthDate}>
             <DateInput id="bd" value={form.birthDate} onChange={set('birthDate')} />
           </Field>
-          <Field label="วันที่เข้าโครงการ" htmlFor="en" error={errors.enrolledAt}>
-            <input id="en" type="date" value={form.enrolledAt} onChange={(e) => set('enrolledAt')(e.target.value)} />
+          <Field label="วันที่เข้าคลินิก" htmlFor="en" error={errors.enrolledAt}>
+            <DateInput id="en" value={form.enrolledAt} onChange={set('enrolledAt')} />
           </Field>
-          <Field label="สาเหตุโรคไต (ถ้าทราบ)" htmlFor="cause">
-            <input id="cause" value={form.ckdCause} onChange={(e) => set('ckdCause')(e.target.value)} placeholder="เช่น เบาหวาน ความดันโลหิตสูง" />
-          </Field>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Field label="สาเหตุโรคไต (ถ้าทราบ เลือกได้มากกว่า 1 ข้อ)">
+              <CausePicker value={form.ckdCause} onChange={set('ckdCause')} />
+            </Field>
+          </div>
           <Field label="หมายเหตุ" htmlFor="notes">
             <input id="notes" value={form.notes} onChange={(e) => set('notes')(e.target.value)} />
           </Field>

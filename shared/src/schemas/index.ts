@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isValidThaiNationalId, normalizeNationalId } from '../domain/thaiId';
+import { HN_LENGTH, isValidHn, normalizeHn } from '../domain/hn';
 
 const isoDate = z.coerce.date({ invalid_type_error: 'วันที่ไม่ถูกต้อง' });
 const optionalText = z.string().trim().max(2000).optional().nullable();
@@ -30,7 +31,12 @@ export const patientCreateSchema = z.object({
     .string()
     .transform(normalizeNationalId)
     .refine(isValidThaiNationalId, 'เลขบัตรประชาชนไม่ถูกต้อง (ต้องมี 13 หลักและเลขตรวจสอบถูกต้อง)'),
-  hn: z.string().trim().min(1, 'กรุณากรอก HN').max(20),
+  hn: z
+    .string()
+    .trim()
+    .min(1, 'กรุณากรอก HN')
+    .transform(normalizeHn)
+    .refine(isValidHn, `HN ต้องเป็นตัวเลข ${HN_LENGTH} หลัก (พิมพ์ย่อด้วย / ได้ เช่น 45/70)`),
   title: z.string().trim().min(1, 'กรุณาเลือกคำนำหน้า').max(30),
   firstName: z.string().trim().min(1, 'กรุณากรอกชื่อ').max(100),
   lastName: z.string().trim().min(1, 'กรุณากรอกนามสกุล').max(100),

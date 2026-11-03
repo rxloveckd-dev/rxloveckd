@@ -51,7 +51,7 @@ export class MockHttpError extends Error {
   }
 }
 
-const KEY = 'loveckd-static-demo-v1';
+const KEY = 'loveckd-static-demo-v2'; // v2: 9-digit HN, multi-cause CKD
 const SESSION_KEY = 'loveckd-static-demo-session';
 /** Apps Script web app (apps-script/Code.gs). When set, data lives in the Google Sheet, not the browser. */
 const SHEETS_URL: string = import.meta.env.VITE_SHEETS_API_URL ?? '';
@@ -129,13 +129,13 @@ function seed(): Store {
     s.patients.push({
       id: pid,
       nationalId: nid(i + 1),
-      hn: String(650001 + i).padStart(7, '0'),
+      hn: String(650001 + i).padStart(9, '0'),
       title: sex === 'male' ? 'นาย' : pick(['นาง', 'นางสาว']),
       firstName: pick(sex === 'male' ? FIRST_M : FIRST_F),
       lastName: pick(LAST),
       birthDate: new Date(Date.UTC(1940 + Math.floor(rand() * 35), Math.floor(rand() * 12), 1 + Math.floor(rand() * 27))).toISOString(),
       sex,
-      ckdCause: pick(['เบาหวาน', 'ความดันโลหิตสูง', 'เบาหวานและความดัน', null]),
+      ckdCause: pick(['เบาหวาน', 'ความดัน', 'เบาหวาน, ความดัน', 'เบาหวาน, ความดัน, ไขมันในเลือด', null]),
       programStatus: 'active',
       enrolledAt: day(-200 + i * 5),
       notes: 'ข้อมูลสมมติสำหรับทดลองระบบ',

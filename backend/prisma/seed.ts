@@ -88,13 +88,13 @@ async function main() {
     const patient = await prisma.patient.create({
       data: {
         nationalId: syntheticNationalId(i + 1),
-        hn: String(650001 + i).padStart(7, '0'),
+        hn: String(650001 + i).padStart(9, '0'),
         title: sex === 'male' ? 'นาย' : pick(['นาง', 'นางสาว']),
         firstName: pick(sex === 'male' ? FIRST_M : FIRST_F),
         lastName: pick(LAST),
         birthDate: new Date(Date.UTC(1940 + Math.floor(rand() * 35), Math.floor(rand() * 12), 1 + Math.floor(rand() * 27))),
         sex,
-        ckdCause: pick(['เบาหวาน', 'ความดันโลหิตสูง', 'เบาหวานและความดัน', null]),
+        ckdCause: pick(['เบาหวาน', 'ความดัน', 'เบาหวาน, ความดัน', 'เบาหวาน, ความดัน, ไขมันในเลือด', null]),
         enrolledAt: daysFromToday(-200 + i * 5),
         responsiblePharmacistId: pharmacist.id,
         notes: 'ข้อมูลสมมติสำหรับทดลองระบบ',

@@ -36,7 +36,7 @@ export const VALID_ID = '1101700207030';
 
 export const patientBody = (overrides: Record<string, unknown> = {}) => ({
   nationalId: VALID_ID,
-  hn: '000123',
+  hn: '000000123',
   title: 'นาย',
   firstName: 'ทดสอบ',
   lastName: 'ระบบ',
