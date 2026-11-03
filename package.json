@@ -12,7 +12,8 @@
     "test": "npm run test -w shared && npm run test -w backend",
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w backend && npm run typecheck -w frontend",
     "db:setup": "npm run db:setup -w backend",
-    "build": "npm run build -w frontend"
+    "build": "npm run build -w frontend",
+    "deploy:gas": "node scripts/deploy-gas.cjs"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
