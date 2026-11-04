@@ -50,6 +50,8 @@ export async function downloadMonthlyReport(month: string) {
     window.location.href = `/api/reports/monthly.xlsx?month=${month}`;
     return;
   }
+  const { logReportExport } = await import('./demo/mockApi');
+  await logReportExport(month);
   const s = await api<MonthlySummary>(`/reports/monthly?month=${month}`);
   const rows: [string, string | number][] = [
     ['เดือน', buddhistMonth(s.month)],

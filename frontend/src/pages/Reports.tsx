@@ -41,6 +41,7 @@ function Kpi({ label, value, prev, unit, suffix }: { label: string; value: numbe
 export function Reports() {
   const thisMonth = new Date().toISOString().slice(0, 7);
   const [month, setMonth] = useState(thisMonth);
+  const [exportError, setExportError] = useState('');
   const valid = /^\d{4}-\d{2}$/.test(month);
   const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ['report-trend', month],
@@ -78,8 +79,18 @@ export function Reports() {
             )}
           </div>
         </div>
-        <button className="btn" onClick={() => downloadMonthlyReport(month)} disabled={!valid}><Icon name="download" />ดาวน์โหลด Excel</button>
+        <button
+          className="btn"
+          onClick={() => {
+            setExportError('');
+            downloadMonthlyReport(month).catch(() => setExportError('ดาวน์โหลดไม่สำเร็จ กรุณาลองใหม่'));
+          }}
+          disabled={!valid}
+        >
+          <Icon name="download" />ดาวน์โหลด Excel
+        </button>
       </div>
+      {exportError && <div className="alert" role="alert" style={{ marginBottom: 12 }}>{exportError}</div>}
 
       {isLoading ? (
         <Loading />

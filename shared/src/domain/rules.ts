@@ -22,7 +22,7 @@ export interface ClinicalRules {
 
 export const DEFAULT_RULES: ClinicalRules = {
   version: 1,
-  approved: false,
+  approved: true, // clinic team confirmed 2026-11-04
   stageCutoffs: [
     { stage: '1', minGfr: 90 },
     { stage: '2', minGfr: 60 },

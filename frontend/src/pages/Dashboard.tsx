@@ -117,7 +117,7 @@ export function Dashboard() {
       <div className="dash-grid">
         <div className="section span-12">
           <h3 className="tab">ความเร่งด่วนในการติดตาม</h3>
-          <p className="section-sub">สีที่เภสัชกรระบุ กดที่แถบสีเพื่อดูรายชื่อ{!data.rules.approved && ' (เกณฑ์แจ้งเตือนยังเป็นค่าเริ่มต้น รอทีมคลินิกอนุมัติ)'}</p>
+          <p className="section-sub">สีที่เภสัชกรระบุ กดที่แถบสีเพื่อดูรายชื่อ{!data.rules.approved && ' (เกณฑ์แจ้งเตือนชุดนี้ยังไม่ผ่านการอนุมัติ)'}</p>
           <StackedBar
             segments={[
               ...URGENCY_COLORS.map((c) => ({ key: c as string, label: LABELS.urgency[c], value: counts.byColor[c], color: URGENCY_BAR[c] })),

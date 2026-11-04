@@ -6,7 +6,8 @@
  * Every call runs as the signed-in Google user, so:
  *   1. the user must have edit access to this Sheet (share it only with clinic staff), and
  *   2. the user's email must be in the `users` tab with an active clinical role.
- * There is no public data endpoint. Every load and change is written to the `audit` tab.
+ * There is no public data endpoint. Every load, change, patient opened and report exported is
+ * written to the `audit` tab.
  */
 
 const TABLES = {
@@ -392,6 +393,21 @@ function loadAll() {
   });
   audit(user.id, 'view', 'all', '', 'ok');
   return out;
+}
+
+/** What the page may report, with the id each entry must look like (ids reach the audit tab as text). */
+const LOGGABLE = {
+  'view:patient': /^[A-Za-z0-9_-]{1,64}$/,
+  'export:report_monthly': /^\d{4}-(0[1-9]|1[0-2])$/,
+};
+
+/** Data is read in the browser after loadAll, so the page reports each patient opened and each export. */
+function logEvent(action, entity, entityId) {
+  const user = requireUser(true);
+  const format = LOGGABLE[action + ':' + entity];
+  if (!format || !format.test(String(entityId))) throw new Error('รายการบันทึกไม่ถูกต้อง');
+  audit(user.id, action, entity, String(entityId), 'ok');
+  return { ok: true };
 }
 
 function toCells(name, row) {

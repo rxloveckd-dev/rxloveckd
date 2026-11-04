@@ -3,6 +3,7 @@
  * data, using the same shared domain rules as the server. Nothing leaves the browser; data is kept
  * in this browser's localStorage only.
  */
+import { createViewLogger } from './accessLog';
 import {
   aceiArbCoverage,
   DEFAULT_RULES,
@@ -221,6 +222,13 @@ function fromSheet(table: Table, row: Record<string, string>) {
     else out[k] = v === '' ? null : v;
   }
   return out;
+}
+
+const logPatientView = createViewLogger((id) => gasCall('logEvent', 'view', 'patient', id));
+
+/** Clinic system: logs the export first, so a file never leaves without a record of it. */
+export async function logReportExport(month: string) {
+  if (GAS) await gasCall('logEvent', 'export', 'report_monthly', month);
 }
 
 async function sheetsPost(payload: { ops?: Op[]; reset?: boolean }) {
@@ -494,7 +502,9 @@ const routes: [string, RegExp, Handler][] = [
   }],
   ['GET', /^\/patients\/([^/]+)$/, (m) => {
     clinical();
-    return { patient: profile(patientOr404(m[1]!)) };
+    const patient = profile(patientOr404(m[1]!));
+    if (GAS) logPatientView(m[1]!);
+    return { patient };
   }],
   ['GET', /^\/patients\/([^/]+)\/labs$/, (m) => {
     clinical();

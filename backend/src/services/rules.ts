@@ -1,7 +1,7 @@
 import { DEFAULT_RULES, type ClinicalRules } from '@rx/shared';
 import { prisma } from '../db';
 
-/** Latest rule version already in effect; falls back to the unapproved demo defaults. */
+/** Latest rule version already in effect; falls back to the approved defaults. */
 export async function activeRules(now = new Date()): Promise<ClinicalRules> {
   const row = await prisma.ruleVersion.findFirst({
     where: { effectiveFrom: { lte: now } },

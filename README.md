@@ -70,11 +70,15 @@ npm run typecheck
 | `specs/001-renal-pharmcare/` | spec, plan, tasks (Spec Kit) |
 | `data/LoveCKD_Database.xlsx` | ไฟล์ Excel ชั่วคราวสำหรับบันทึกระหว่างรอระบบ |
 
-## ก่อนใช้งานจริง
+## สถานะการใช้งานจริง
 
-ยังไม่พร้อมใช้กับข้อมูลผู้ป่วยจริงจนกว่าจะผ่าน: อนุมัติเกณฑ์ทางคลินิก, ประเมินความปลอดภัยและ PDPA,
-เปลี่ยนเป็น MySQL/MariaDB บน server ของโรงพยาบาล (`provider` ใน `backend/prisma/schema.prisma`),
-ตั้ง `NODE_ENV=production` และ `DEMO_MODE=false`, ระบบสำรองข้อมูล และ UAT กับเภสัชกร
-(ดู checklist ใน spec และ constitution)
+ระบบคลินิกทำงานบน Google Apps Script และ Google Sheet ส่วนตัว ทีมคลินิกแจ้งเมื่อ 4 พ.ย. 2569 ว่าผ่านการอนุมัติเกณฑ์ทางคลินิก
+ประเมินความปลอดภัยและ PDPA และทดสอบกับเภสัชกรแล้ว
+
+แท็บ `audit` ใน Sheet เก็บการเข้าระบบ การเปลี่ยนแปลงข้อมูล การเปิดดูผู้ป่วยแต่ละราย (`view`, `patient`) และการส่งออกรายงาน
+(`export`, `report_monthly`) การเปิดผู้ป่วยรายเดิมซ้ำภายใน 10 นาทีนับเป็นครั้งเดียว
+
+ถ้าย้ายไปใช้ server ของโรงพยาบาล: เปลี่ยนเป็น MySQL/MariaDB (`provider` ใน `backend/prisma/schema.prisma`)
+และตั้ง `NODE_ENV=production` กับ `DEMO_MODE=false` แล้วประเมินความปลอดภัยใหม่อีกครั้ง
 
 สำรองข้อมูลโหมดทดลอง: คัดลอกไฟล์ `backend/prisma/dev.db` ขณะปิดระบบ
