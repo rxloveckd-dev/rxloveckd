@@ -494,15 +494,30 @@ td.num, th.num { text-align: right; }
 .date-input > input { flex: 1; min-width: 0; padding-right: 46px; }
 .date-pick {
   position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-  width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
-  color: var(--ink-soft); background: #eef1f6; overflow: hidden;
+  width: 34px; height: 34px; border: 0; border-radius: 9px; padding: 0; display: grid; place-items: center;
+  color: var(--ink-soft); background: #eef1f6; cursor: pointer;
 }
 .date-pick:hover { background: var(--tab); color: var(--ink); }
-.date-pick input {
-  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
-  padding: 0; margin: 0; border: 0;
+.date-warn { margin: 6px 0 0; font-size: 0.85rem; font-weight: 600; color: var(--orange); }
+.date-pop {
+  position: absolute; top: 100%; right: 0; z-index: 30; margin-top: 6px; padding: 10px;
+  width: 296px; max-width: calc(100vw - 32px); display: grid; gap: 8px;
+  background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(31, 42, 68, 0.2);
 }
-.date-pick input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; cursor: pointer; }
+.date-pop.from-left { left: 0; right: auto; }
+.date-pop button { font: inherit; color: inherit; border: 0; background: none; border-radius: var(--radius-sm); cursor: pointer; }
+.date-pop button:hover:not(:disabled) { background: var(--tab); }
+.date-pop button:disabled { color: #b5bccb; cursor: not-allowed; }
+.date-pop-head { display: grid; grid-template-columns: 32px minmax(0, 1fr) 78px 32px; gap: 4px; align-items: center; }
+.date-pop-head button { height: 34px; }
+.date-pop-head select { font: inherit; min-width: 0; padding: 5px 4px; border: 1px solid #c3c9d6; border-radius: var(--radius-sm); background: var(--sheet); color: var(--ink); }
+.date-pop-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.date-pop-weekday { font-size: 0.8rem; color: var(--ink-soft); padding: 2px 0; }
+.date-pop-grid button { height: 34px; padding: 0; }
+.date-pop-grid button.today { box-shadow: inset 0 0 0 1px var(--ink-soft); }
+.date-pop-grid button.picked, .date-pop-grid button.picked:hover { background: var(--brand); color: #fff; font-weight: 600; }
+.date-pop .date-pop-today { padding: 6px; background: #eef1f6; }
 
 /* ---------- multi-choice pills (checkboxes), e.g. CKD causes */
 .choice.multi label:has(input:checked)::before { content: '✓ '; }
@@ -551,3 +566,18 @@ td.num, th.num { text-align: right; }
 }
 .theme-picker button[aria-pressed='true'] { border-color: #fff; outline: 2px solid #fff; outline-offset: 2px; }
 @media (max-width: 860px) { .theme-picker { margin: 0; } .theme-picker span { display: none; } }
+
+/* ---------- phone header: logo, then themes + sign-out, then however many menu items the role has */
+@media (max-width: 640px) {
+  .side { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; }
+  .brand { flex: 1 1 100%; padding: 0; }
+  .side-foot { order: 1; flex: 1 1 100%; min-width: 0; margin: 0; padding: 0; justify-content: space-between; flex-wrap: wrap; }
+  .side a { order: 2; flex: 1 1 0; min-width: 0; }
+}
+@media (max-width: 860px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .main { min-width: 0; }
+}
+@media (max-width: 640px) {
+  .date-pop, .date-pop.from-left { position: fixed; top: 50%; left: 50%; right: auto; margin: 0; transform: translate(-50%, -50%); }
+}

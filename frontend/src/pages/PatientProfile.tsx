@@ -164,7 +164,7 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
           <DateInput id={`vd-${visit.id}`} value={f.visitDate} onChange={set('visitDate')} />
         </Field>
         <Field label="นัดครั้งต่อไป" htmlFor={`na-${visit.id}`}>
-          <DateInput id={`na-${visit.id}`} value={f.nextAppointment} min={f.visitDate} onChange={set('nextAppointment')} />
+          <DateInput id={`na-${visit.id}`} kind="appointment" value={f.nextAppointment} min={f.visitDate} onChange={set('nextAppointment')} />
         </Field>
         <Field label="ครั้งถัดไป">
           <Choice name={`see-${visit.id}`} value={f.nextSeePharmacist} options={[['yes', LABELS.nextSeePharmacist.yes], ['no', LABELS.nextSeePharmacist.no]]} onChange={set('nextSeePharmacist')} />

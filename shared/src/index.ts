@@ -8,6 +8,7 @@ export * from './domain/urgency';
 export * from './domain/patientStatus';
 export * from './domain/monthly';
 export * from './domain/dashboard';
+export * from './domain/dateCheck';
 export * from './schemas';
 export * from './labels';
 export * from './types';

@@ -1,6 +1,6 @@
 {
   "name": "@rx/frontend",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,8 @@
     "build": "vite build",
     "build:pages": "vite build --mode pages --outDir dist-pages/demo --emptyOutDir && node scripts/pages-site.cjs",
     "preview": "vite preview",
-    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "typecheck": "tsc -p . && tsc -p tests",
     "build:gas": "vite build --mode gas --outDir dist-gas && node scripts/gas-html.cjs"
   },
   "dependencies": {
@@ -19,10 +20,15 @@
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
     "vite": "^5.4.11",
-    "vite-plugin-singlefile": "^2.0.3"
+    "vite-plugin-singlefile": "^2.0.3",
+    "vitest": "^2.1.9"
   }
 }

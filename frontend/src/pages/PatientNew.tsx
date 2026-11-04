@@ -186,7 +186,7 @@ function PatientForm({ initial, patient }: { initial: FormState; patient?: Patie
             <Choice name="sex" value={form.sex} options={[['male', 'ชาย'], ['female', 'หญิง']]} onChange={(v) => set('sex')(v)} />
           </Field>
           <Field label="วันเกิด" htmlFor="bd" error={errors.birthDate}>
-            <DateInput id="bd" value={form.birthDate} onChange={set('birthDate')} />
+            <DateInput id="bd" kind="birth" value={form.birthDate} onChange={set('birthDate')} />
           </Field>
           <Field label="วันที่เข้าคลินิก" htmlFor="en" error={errors.enrolledAt}>
             <DateInput id="en" value={form.enrolledAt} onChange={set('enrolledAt')} />

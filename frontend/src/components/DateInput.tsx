@@ -1,5 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { dateWarning, type DateKind } from '@rx/shared';
+import { todayIso } from '../format';
 import { Icon } from './Icon';
+import { CALENDAR_WIDTH, ThaiCalendar } from './ThaiCalendar';
 
 /** ISO "2026-11-03" → "03/11/2569" (day/month/Buddhist-era year). */
 function isoToText(iso: string): string {
@@ -39,60 +42,95 @@ function retype(raw: string, caret: number): { text: string; caret: number } {
 }
 
 /**
- * Date field typed as วว/ดด/ปปปป (พ.ศ. or ค.ศ.), digits only, or picked from the calendar button.
- * `value`/`onChange` use ISO yyyy-mm-dd.
+ * Date field typed as วว/ดด/ปปปป (พ.ศ. or ค.ศ.), digits only, or picked from the พ.ศ. calendar.
+ * `value`/`onChange` use ISO yyyy-mm-dd. `kind` decides which dates earn a "please check" warning.
  */
-export function DateInput({ id, value, min, onChange }: { id?: string; value: string; min?: string; onChange: (iso: string) => void }) {
+export function DateInput({ id, value, min, kind = 'record', onChange }: { id?: string; value: string; min?: string; kind?: DateKind; onChange: (iso: string) => void }) {
   const [text, setText] = useState(() => isoToText(value));
   const [caret, setCaret] = useState<{ at: number } | null>(null);
+  const [open, setOpen] = useState(false);
+  const [fromLeft, setFromLeft] = useState(false);
   const field = useRef<HTMLInputElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const today = todayIso();
 
   // Rewriting the text sends the cursor to the end; put it back where the staff member was.
   useLayoutEffect(() => {
     if (caret) field.current?.setSelectionRange(caret.at, caret.at);
   }, [caret]);
 
-  // Follow outside changes (calendar pick, form reset) without fighting the user's typing.
+  // Follow outside changes (form reset) without fighting the user's typing.
   useEffect(() => {
     if (value !== textToIso(text)) setText(isoToText(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
+  useEffect(() => {
+    if (!open) return;
+    const clickAway = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', clickAway);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('mousedown', clickAway);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open]);
+
+  // Open towards whichever side has room, so a field near either screen edge keeps the calendar on screen.
+  const toggleCalendar = () => {
+    const left = box.current?.getBoundingClientRect().left ?? 0;
+    setFromLeft(left + CALENDAR_WIDTH <= document.documentElement.clientWidth);
+    setOpen(!open);
+  };
+
+  const notARealDate = !value && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(text);
+  const warning = notARealDate ? 'ไม่มีวันที่นี้ในปฏิทิน กรุณาตรวจสอบ' : dateWarning(value, kind, today);
+
   return (
-    <div className="date-input">
-      <input
-        ref={field}
-        id={id}
-        inputMode="numeric"
-        placeholder="วว/ดด/ปปปป เช่น 01122569"
-        maxLength={11}
-        value={text}
-        onChange={(e) => {
-          const next = retype(e.target.value, e.target.selectionStart ?? e.target.value.length);
-          setText(next.text);
-          setCaret({ at: next.caret });
-          onChange(textToIso(next.text));
-        }}
-        onBlur={() => {
-          if (value) setText(isoToText(value));
-        }}
-      />
-      {/* The native date input sits invisibly over the icon, so a click opens the browser's
-          calendar directly (works inside the Apps Script frame, where showPicker() is blocked). */}
-      <span className="date-pick" title="เลือกจากปฏิทิน">
-        <Icon name="calendar" />
+    <div className="date-field" ref={box}>
+      <div className="date-input">
         <input
-          type="date"
-          tabIndex={-1}
-          aria-label="เลือกจากปฏิทิน"
-          value={value}
-          min={min}
+          ref={field}
+          id={id}
+          inputMode="numeric"
+          placeholder="วว/ดด/ปปปป เช่น 01122569"
+          maxLength={11}
+          value={text}
           onChange={(e) => {
-            setText(isoToText(e.target.value));
-            onChange(e.target.value);
+            const next = retype(e.target.value, e.target.selectionStart ?? e.target.value.length);
+            setText(next.text);
+            setCaret({ at: next.caret });
+            setOpen(false);
+            onChange(textToIso(next.text));
+          }}
+          onBlur={() => {
+            if (value) setText(isoToText(value));
           }}
         />
-      </span>
+        <button type="button" className="date-pick" tabIndex={-1} title="เลือกจากปฏิทิน" aria-label="เลือกจากปฏิทิน" aria-expanded={open} onClick={toggleCalendar}>
+          <Icon name="calendar" />
+        </button>
+        {open && (
+          <ThaiCalendar
+            value={value}
+            min={min}
+            today={today}
+            fromLeft={fromLeft}
+            onPick={(iso) => {
+              setText(isoToText(iso));
+              onChange(iso);
+              setOpen(false);
+              field.current?.focus();
+            }}
+          />
+        )}
+      </div>
+      {warning && <p className="date-warn" role="status">{warning}</p>}
     </div>
   );
 }

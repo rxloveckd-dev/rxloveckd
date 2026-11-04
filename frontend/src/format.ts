@@ -16,4 +16,8 @@ export function num(value: number | null | undefined, digits = 0): string {
   return value.toLocaleString('th-TH', { maximumFractionDigits: digits, minimumFractionDigits: digits });
 }
 
-export const todayIso = () => new Date().toISOString().slice(0, 10);
+/** Today on the staff member's own clock (toISOString alone would still say yesterday before 07:00 in Thailand). */
+export const todayIso = () => {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+};

@@ -1,6 +1,6 @@
 {
   "name": "renal-pharmcare",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "workspaces": [
     "shared",
@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"npm run dev -w backend\" \"npm run dev -w frontend\"",
-    "test": "npm run test -w shared && npm run test -w backend",
+    "test": "npm run test -w shared && npm run test -w frontend && npm run test -w backend",
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w backend && npm run typecheck -w frontend",
     "db:setup": "npm run db:setup -w backend",
     "build": "npm run build -w frontend",

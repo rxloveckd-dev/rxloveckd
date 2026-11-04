@@ -213,7 +213,7 @@ export function VisitNew() {
         </div>
         <div className="grid-2" style={{ marginTop: 14 }}>
           <Field label="Note เภสัชกร" htmlFor="fu"><textarea id="fu" value={further} onChange={(e) => setFurther(e.target.value)} /></Field>
-          <Field label="นัดครั้งต่อไป" htmlFor="na"><DateInput id="na" value={next} min={visitDate} onChange={setNext} /></Field>
+          <Field label="นัดครั้งต่อไป" htmlFor="na"><DateInput id="na" kind="appointment" value={next} min={visitDate} onChange={setNext} /></Field>
           <Field label="ครั้งถัดไป">
             <Choice name="seePharmacist" value={seePharmacist} options={[['yes', LABELS.nextSeePharmacist.yes], ['no', LABELS.nextSeePharmacist.no]]} onChange={setSeePharmacist} />
           </Field>
