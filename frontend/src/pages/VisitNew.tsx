@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { gfrChangePercent, LABELS, visitCreateSchema } from '@rx/shared';
+import { gfrChangePercent, LABELS, potassiumOutOfRange, visitCreateSchema, type UrgencyColor } from '@rx/shared';
 import { ApiError, usePatient, usePatientMutation } from '../api';
-import { Choice, ErrorState, Field, Loading, Section } from '../components/ui';
+import { Choice, ErrorState, Field, Loading, Section, UrgencyPicker } from '../components/ui';
+import { AlbuminInput } from '../components/AlbuminInput';
+import { DateInput } from '../components/DateInput';
+import { enterToNext } from '../components/enterToNext';
 import { num, pct, todayIso } from '../format';
 import { Icon } from '../components/Icon';
 import { LeftoverEditor, leftoverPayload, type LeftoverRow } from '../components/LeftoverEditor';
@@ -29,11 +32,12 @@ export function VisitNew() {
   const [hba1c, setHba1c] = useState('');
   const [albumin, setAlbumin] = useState('');
   const [potassium, setPotassium] = useState('');
-  const [bpDate, setBpDate] = useState(todayIso());
   const [sbp, setSbp] = useState('');
   const [dbp, setDbp] = useState('');
   const [aceiArb, setAceiArb] = useState<'' | 'yes' | 'no'>('');
   const [aceiArbNoReason, setAceiArbNoReason] = useState('');
+  const [doctorChange, setDoctorChange] = useState<'' | 'yes' | 'no'>('');
+  const [doctorChangeDetail, setDoctorChangeDetail] = useState('');
   // Note starts at the usual answers; staff only change what is abnormal.
   const [taking, setTaking] = useState<'' | 'correct' | 'incorrect'>('correct');
   const [takingDetail, setTakingDetail] = useState('');
@@ -47,6 +51,9 @@ export function VisitNew() {
   const [seasoning, setSeasoning] = useState<'' | 'reduce_needed' | 'adjusted'>('adjusted');
   const [further, setFurther] = useState('');
   const [next, setNext] = useState('');
+  const [seePharmacist, setSeePharmacist] = useState<'' | 'yes' | 'no'>('');
+  // null until the pharmacist picks: the patient keeps the color they already have.
+  const [pickedColor, setPickedColor] = useState<UrgencyColor | '' | null>(null);
   const [meds, setMeds] = useState<MedDraft[]>([]);
   const [error, setError] = useState('');
 
@@ -56,6 +63,8 @@ export function VisitNew() {
 
   const gfrNum = gfr ? Number(gfr) : null;
   const change = gfrChangePercent(gfrNum, p.latestGfr?.value ?? null);
+  const potassiumHigh = potassium.trim() !== '' && potassiumOutOfRange(Number(potassium));
+  const urgencyColor = pickedColor ?? p.color ?? '';
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -63,10 +72,10 @@ export function VisitNew() {
     const labs = [
       gfr && { test: 'gfr', value: gfr, unit: LABELS.labUnit.gfr, collectedAt: labDate },
       hba1c && { test: 'hba1c', value: hba1c, unit: LABELS.labUnit.hba1c, collectedAt: labDate },
-      albumin && { test: 'albumin', value: albumin, unit: LABELS.labUnit.albumin, collectedAt: labDate },
+      albumin.trim() && { test: 'albumin', value: 0, valueText: albumin, unit: LABELS.labUnit.albumin, collectedAt: labDate },
       potassium && { test: 'potassium', value: potassium, unit: LABELS.labUnit.potassium, collectedAt: labDate },
-      sbp && { test: 'sbp', value: sbp, unit: LABELS.labUnit.sbp, collectedAt: bpDate },
-      dbp && { test: 'dbp', value: dbp, unit: LABELS.labUnit.dbp, collectedAt: bpDate },
+      sbp && { test: 'sbp', value: sbp, unit: LABELS.labUnit.sbp, collectedAt: labDate },
+      dbp && { test: 'dbp', value: dbp, unit: LABELS.labUnit.dbp, collectedAt: labDate },
     ].filter(Boolean);
     const body = {
       visitDate,
@@ -81,6 +90,10 @@ export function VisitNew() {
       seasoningDetail: seasoning === 'reduce_needed' ? seasoningDetail || null : null,
       furtherAdjustments: further || null,
       nextAppointment: next || null,
+      nextSeePharmacist: next ? seePharmacist || null : null,
+      urgencyColor: urgencyColor || null,
+      doctorMedChange: doctorChange || null,
+      doctorMedChangeDetail: doctorChange === 'yes' ? doctorChangeDetail : null,
       aceiArb: aceiArb || undefined,
       aceiArbNoReason: aceiArb === 'no' ? aceiArbNoReason : null,
       aceiArbDrug: aceiArb === 'yes' ? aceiArbDrug || null : null,
@@ -90,7 +103,7 @@ export function VisitNew() {
     const parsed = visitCreateSchema.safeParse(body);
     if (!parsed.success) {
       const specific = parsed.error.issues.find((i) =>
-        ['nextAppointment', 'aceiArb', 'aceiArbNoReason', 'aceiArbDrug', 'leftoverMeds'].includes(String(i.path[0])),
+        ['visitDate', 'labs', 'nextAppointment', 'nextSeePharmacist', 'doctorMedChangeDetail', 'aceiArb', 'aceiArbNoReason', 'aceiArbDrug', 'leftoverMeds'].includes(String(i.path[0])),
       );
       setError(specific?.message ?? 'กรุณาเลือกให้ครบทุกข้อในส่วน Note (การกินยา ยาสมุนไพร อาหาร เครื่องปรุง)');
       return;
@@ -104,20 +117,20 @@ export function VisitNew() {
   }
 
   return (
-    <form onSubmit={submit} noValidate>
+    <form onSubmit={submit} onKeyDown={enterToNext} noValidate>
       <div className="page-head">
         <div>
           <h1>บันทึกการติดตาม</h1>
           <p className="muted" style={{ margin: 0 }}>{p.title}{p.firstName} {p.lastName}, HN {p.hn}, อายุ {p.age} ปี</p>
         </div>
         <Field label="วันที่มา" htmlFor="vd">
-          <input id="vd" type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
+          <DateInput id="vd" value={visitDate} onChange={setVisitDate} />
         </Field>
       </div>
 
       <Section title="ผลแล็บ">
         <div className="grid-3">
-          <Field label="วันที่ตรวจ" htmlFor="ld"><input id="ld" type="date" value={labDate} onChange={(e) => setLabDate(e.target.value)} /></Field>
+          <Field label="วันที่ตรวจ / วัดความดัน" htmlFor="ld"><DateInput id="ld" value={labDate} onChange={setLabDate} /></Field>
           <Field label="GFR (mL/min/1.73m²)" htmlFor="gfr">
             <input id="gfr" inputMode="decimal" value={gfr} onChange={(e) => setGfr(e.target.value)} />
           </Field>
@@ -126,12 +139,13 @@ export function VisitNew() {
               {change === null ? (p.latestGfr ? 'กรอก GFR เพื่อคำนวณ' : 'ไม่มีผลครั้งก่อน') : `${pct(change)} (ครั้งก่อน ${num(p.latestGfr?.value, 1)})`}
             </div>
           </Field>
-          <Field label="HbA1c (%)" htmlFor="a1c"><input id="a1c" inputMode="decimal" value={hba1c} onChange={(e) => setHba1c(e.target.value)} /></Field>
-          <Field label="Albumin (mg/g)" htmlFor="alb"><input id="alb" inputMode="decimal" value={albumin} onChange={(e) => setAlbumin(e.target.value)} /></Field>
-          <Field label="Potassium (mmol/L)" htmlFor="k"><input id="k" inputMode="decimal" value={potassium} onChange={(e) => setPotassium(e.target.value)} /></Field>
-        </div>
-        <div className="grid-3" style={{ marginTop: 14 }}>
-          <Field label="วันที่วัดความดัน" htmlFor="bpd"><input id="bpd" type="date" value={bpDate} onChange={(e) => setBpDate(e.target.value)} /></Field>
+          <Field label={`HbA1c (%) (${LABELS.labRange.hba1c})`} htmlFor="a1c"><input id="a1c" inputMode="decimal" value={hba1c} onChange={(e) => setHba1c(e.target.value)} /></Field>
+          <Field label="Albumin (mg/g)" htmlFor="alb">
+            <AlbuminInput id="alb" value={albumin} onChange={setAlbumin} />
+          </Field>
+          <Field label={`Potassium (mmol/L) (${LABELS.labRange.potassium})`} htmlFor="k" error={potassiumHigh ? 'นอกช่วงปกติ' : undefined}>
+            <input id="k" inputMode="decimal" className={potassiumHigh ? 'out-of-range' : undefined} value={potassium} onChange={(e) => setPotassium(e.target.value)} />
+          </Field>
           <Field label="ความดันโลหิต BP (mmHg)">
             <div className="bp">
               <input aria-label="ความดันตัวบน" inputMode="numeric" placeholder="ตัวบน" value={sbp} onChange={(e) => setSbp(e.target.value)} />
@@ -157,6 +171,10 @@ export function VisitNew() {
               <input id="anr" value={aceiArbNoReason} onChange={(e) => setAceiArbNoReason(e.target.value)} placeholder="เช่น โพแทสเซียมสูง แพทย์หยุดยา ไม่มีข้อบ่งใช้" />
             </Field>
           )}
+          <Field label="แพทย์มีการปรับเปลี่ยนยา">
+            <Choice name="doctorChange" value={doctorChange} options={[['yes', 'มี'], ['no', 'ไม่มี']]} onChange={setDoctorChange} />
+            {doctorChange === 'yes' && <input aria-label="ระบุการปรับเปลี่ยนยา" placeholder="ระบุการปรับเปลี่ยนยา" value={doctorChangeDetail} onChange={(e) => setDoctorChangeDetail(e.target.value)} className="detail-input" />}
+          </Field>
         </div>
         {meds.length === 0 && <p className="muted" style={{ margin: 0 }}>ถ้ามียาใหม่หรือเปลี่ยนยา กด "เพิ่มยา" ยาเดิมดูได้ในหน้าผู้ป่วย</p>}
         {meds.map((m, i) => (
@@ -194,8 +212,14 @@ export function VisitNew() {
           </Field>
         </div>
         <div className="grid-2" style={{ marginTop: 14 }}>
-          <Field label="สิ่งที่ต้องปรับเพิ่ม" htmlFor="fu"><textarea id="fu" value={further} onChange={(e) => setFurther(e.target.value)} /></Field>
-          <Field label="นัดครั้งต่อไป" htmlFor="na"><input id="na" type="date" value={next} min={visitDate} onChange={(e) => setNext(e.target.value)} /></Field>
+          <Field label="Note เภสัชกร" htmlFor="fu"><textarea id="fu" value={further} onChange={(e) => setFurther(e.target.value)} /></Field>
+          <Field label="นัดครั้งต่อไป" htmlFor="na"><DateInput id="na" value={next} min={visitDate} onChange={setNext} /></Field>
+          <Field label="ครั้งถัดไป">
+            <Choice name="seePharmacist" value={seePharmacist} options={[['yes', LABELS.nextSeePharmacist.yes], ['no', LABELS.nextSeePharmacist.no]]} onChange={setSeePharmacist} />
+          </Field>
+          <Field label="สีความเร่งด่วน">
+            <UrgencyPicker name="urgency" value={urgencyColor} onChange={setPickedColor} />
+          </Field>
         </div>
       </Section>
 

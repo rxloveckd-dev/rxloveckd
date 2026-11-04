@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { appointmentStatus, urgency, type UrgencyInput } from '../src/domain/urgency';
+import { appointmentStatus, followUpReasons, urgencyRank, type FollowUpInput } from '../src/domain/urgency';
+import { derivePatientStatus } from '../src/domain/patientStatus';
+import { potassiumOutOfRange } from '../src/domain/rules';
+import { buddhistMonth, seePharmacistToday } from '../src/domain/dashboard';
 import { DEFAULT_RULES } from '../src/domain/rules';
 
-const base: UrgencyInput = {
+const base: FollowUpInput = {
   stage: '2',
   gfrChangePct: 0,
   gfrFlags: [],
@@ -12,55 +15,65 @@ const base: UrgencyInput = {
   latestVisit: { medicationTaking: 'correct', herbalOrPainkiller: false },
 };
 
-describe('urgency', () => {
-  it('is green when no condition applies', () => {
-    expect(urgency(base, DEFAULT_RULES)).toEqual({ color: 'green', reasons: [] });
+describe('followUpReasons', () => {
+  const reasons = (over: Partial<FollowUpInput>) => followUpReasons({ ...base, ...over }, DEFAULT_RULES);
+
+  it('is empty when no condition applies', () => {
+    expect(reasons({})).toEqual([]);
   });
 
-  it('is orange for stage 4 and red for stage 5', () => {
-    const four = urgency({ ...base, stage: '4' }, DEFAULT_RULES);
-    expect(four.color).toBe('orange');
-    expect(four.reasons).toEqual(['CKD ระยะ 4']);
-    const five = urgency({ ...base, stage: '5' }, DEFAULT_RULES);
-    expect(five.color).toBe('red');
-    expect(five.reasons).toEqual(['CKD ระยะ 5']);
+  it('lists every reason, most serious first', () => {
+    expect(reasons({ stage: '4', appointment: 'missed' })).toEqual(['เลยวันนัด', 'CKD ระยะ 4']);
+    expect(reasons({ stage: '3b', appointment: 'missed' })).toEqual(['เลยวันนัด', 'CKD ระยะ 3b']);
   });
 
-  it('keeps red above orange when a red condition also applies to stage 4', () => {
-    const r = urgency({ ...base, stage: '4', appointment: 'missed' }, DEFAULT_RULES);
-    expect(r.color).toBe('red');
-    expect(r.reasons).toEqual(['เลยวันนัด', 'CKD ระยะ 4']);
+  it('reports a GFR fall, with the threshold when it is large', () => {
+    expect(reasons({ gfrChangePct: -30 })).toContain('GFR ลดลง 30.0% (มากกว่า 25%)');
+    expect(reasons({ gfrChangePct: -10 })).toEqual(['GFR ลดลง 10.0%']);
+    expect(reasons({ gfrChangePct: -9.9 })).toEqual([]);
   });
 
-  it('is red when GFR fell more than 25%', () => {
-    const r = urgency({ ...base, gfrChangePct: -30 }, DEFAULT_RULES);
-    expect(r.color).toBe('red');
-    expect(r.reasons).toContain('GFR ลดลง 30.0% (มากกว่า 25%)');
+  it('reports high potassium, low blood pressure, herbal use, incorrect taking and missing GFR', () => {
+    expect(reasons({ latestPotassium: 5.8 })).toEqual(['โพแทสเซียมสูง 5.8 mmol/L']);
+    expect(reasons({ latestSbp: 85 })).toEqual(['ความดันต่ำ 85 mmHg']);
+    expect(reasons({ latestVisit: { medicationTaking: 'incorrect', herbalOrPainkiller: true } })).toEqual(['กินยาสมุนไพร/ยาแก้ปวด', 'กินยาไม่ถูกต้อง']);
+    expect(reasons({ stage: null, gfrFlags: ['missing'] })).toEqual(['ยังไม่มีผล GFR']);
+  });
+});
+
+describe('pharmacist urgency color', () => {
+  const today = new Date('2026-11-04');
+  const visit = { visitDate: new Date('2026-11-01'), nextAppointment: new Date('2026-11-04'), medicationTaking: 'correct', herbalOrPainkiller: false };
+  const status = (latestVisit: Parameters<typeof derivePatientStatus>[0]['latestVisit']) =>
+    derivePatientStatus({ birthDate: new Date('1950-01-01'), labs: [{ test: 'gfr', value: 12, collectedAt: today }], latestVisit }, DEFAULT_RULES, today);
+
+  it('comes only from the latest visit, whatever the CKD stage', () => {
+    expect(status(null).color).toBeNull();
+    expect(status(visit).color).toBeNull();
+    expect(status({ ...visit, urgencyColor: 'orange' }).color).toBe('orange');
   });
 
-  it('is yellow when GFR fell 10–25%', () => {
-    expect(urgency({ ...base, gfrChangePct: -10 }, DEFAULT_RULES).color).toBe('yellow');
-    expect(urgency({ ...base, gfrChangePct: -9.9 }, DEFAULT_RULES).color).toBe('green');
+  it('sorts red, orange, yellow, then no color', () => {
+    expect([null, 'yellow', 'red', 'orange'].sort((a, b) => urgencyRank(a as never) - urgencyRank(b as never))).toEqual(['red', 'orange', 'yellow', null]);
   });
 
-  it('is red for high potassium, low blood pressure or a missed appointment', () => {
-    expect(urgency({ ...base, latestPotassium: 5.8 }, DEFAULT_RULES).color).toBe('red');
-    expect(urgency({ ...base, latestSbp: 85 }, DEFAULT_RULES).color).toBe('red');
-    expect(urgency({ ...base, appointment: 'missed' }, DEFAULT_RULES).color).toBe('red');
+  it('lists only patients due today who must see the pharmacist, most urgent first', () => {
+    const p = (id: string, nextAppointment: string | null, nextSeePharmacist: 'yes' | 'no' | null, color: 'red' | 'yellow' | null) => ({ id, nextAppointment, nextSeePharmacist, color });
+    const due = seePharmacistToday(
+      [p('a', '2026-11-04T00:00:00.000Z', 'yes', 'yellow'), p('b', '2026-11-04T00:00:00.000Z', 'no', 'red'), p('c', '2026-11-05T00:00:00.000Z', 'yes', 'red'), p('d', '2026-11-04T00:00:00.000Z', 'yes', 'red')],
+      today,
+    );
+    expect(due.map((x) => x.id)).toEqual(['d', 'a']);
+  });
+});
+
+describe('small display rules', () => {
+  it('flags potassium outside 3.5–5.0', () => {
+    expect([3.4, 3.5, 5.0, 5.1].map((v) => potassiumOutOfRange(v))).toEqual([true, false, false, true]);
   });
 
-  it('is yellow for stage 3, herbal/painkiller use, incorrect taking, or missing/stale GFR', () => {
-    expect(urgency({ ...base, stage: '3a' }, DEFAULT_RULES).color).toBe('yellow');
-    expect(urgency({ ...base, latestVisit: { medicationTaking: 'correct', herbalOrPainkiller: true } }, DEFAULT_RULES).color).toBe('yellow');
-    expect(urgency({ ...base, latestVisit: { medicationTaking: 'incorrect', herbalOrPainkiller: false } }, DEFAULT_RULES).color).toBe('yellow');
-    expect(urgency({ ...base, stage: null, gfrFlags: ['missing'] }, DEFAULT_RULES).color).toBe('yellow');
-    expect(urgency({ ...base, gfrFlags: ['stale'] }, DEFAULT_RULES).color).toBe('yellow');
-  });
-
-  it('takes the worst color and keeps every reason', () => {
-    const r = urgency({ ...base, stage: '3b', appointment: 'missed' }, DEFAULT_RULES);
-    expect(r.color).toBe('red');
-    expect(r.reasons).toEqual(['เลยวันนัด', 'CKD ระยะ 3b']);
+  it('shows a month in the Buddhist era', () => {
+    expect(buddhistMonth('2026-11')).toBe('11/2569');
   });
 });
 

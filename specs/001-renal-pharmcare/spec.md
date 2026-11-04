@@ -317,10 +317,11 @@ assessments after the effective date use it and earlier assessments still show t
 - **FR-003a**: The patient profile MUST show first name, last name, HN, masked national ID, age,
   latest GFR with its date, CKD stage, urgency color, and next appointment.
 - **FR-003b**: Users MUST be able to filter and group patients by CKD stage (1–5) and by urgency
-  color (green, yellow, red).
-- **FR-003c**: System MUST assign each active patient an urgency color (green, yellow, red) from
-  the active clinical rule version, showing every reason that contributed. The color is the worst
-  of: red — CKD stage 5, GFR fall greater than the red threshold (default 25%) versus the
+  color (red, orange, yellow, or no color).
+- **FR-003c**: The pharmacist MUST choose each patient's urgency color (red, orange, yellow) on the
+  visit form and clear it once follow-up shows improvement; the color is separate from the CKD
+  stage and the system never sets it (clinic request 2026-11-04). The system MUST still list every
+  follow-up reason from the active clinical rule version, most serious first: red — CKD stage 5, GFR fall greater than the red threshold (default 25%) versus the
   previous result, potassium above threshold, recorded hypotension, or missed appointment;
   orange — CKD stage 4 (clinic request 2026-11-02); yellow — stage 3a–3b, GFR fall between the yellow and red thresholds (default 10–25%),
   herbal/painkiller use or incorrect medication taking at the latest visit, or missing/stale GFR;

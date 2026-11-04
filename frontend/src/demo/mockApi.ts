@@ -6,10 +6,11 @@
 import {
   aceiArbCoverage,
   DEFAULT_RULES,
+  seePharmacistToday,
+  urgencyRank,
   lastMonths,
   derivePatientStatus,
   dischargeSchema,
-  URGENCY_ORDER,
   drpCreateSchema,
   drpDecisionSchema,
   drpUpdateSchema,
@@ -35,8 +36,8 @@ interface Store {
   users: (SessionUser & { password: string; active?: boolean })[];
   session: string | null;
   patients: { id: string; nationalId: string; hn: string; title: string; firstName: string; lastName: string; birthDate: string; sex: 'male' | 'female'; ckdCause: string | null; programStatus: string; enrolledAt: string; notes: string | null; dischargeCode?: string | null; dischargeDate?: string | null; dischargeNote?: string | null }[];
-  labs: { id: string; patientId: string; visitId: string | null; test: string; value: number; unit: string; collectedAt: string; origin: string; source: string }[];
-  visits: { id: string; patientId: string; visitNo: number; visitDate: string; medicationTaking: string; herbalOrPainkiller: boolean; herbalDetail: string | null; dietControlled: boolean; seasoning: string; furtherAdjustments: string | null; nextAppointment: string | null; aceiArb: string | null; aceiArbNoReason: string | null; pharmacistId: string; medicationTakingDetail?: string | null; leftoverMeds?: string | null; dietDetail?: string | null; seasoningDetail?: string | null; aceiArbDrug?: string | null }[];
+  labs: { id: string; patientId: string; visitId: string | null; test: string; value: number; valueText?: string | null; unit: string; collectedAt: string; origin: string; source: string }[];
+  visits: { id: string; patientId: string; visitNo: number; visitDate: string; medicationTaking: string; herbalOrPainkiller: boolean; herbalDetail: string | null; dietControlled: boolean; seasoning: string; furtherAdjustments: string | null; nextAppointment: string | null; aceiArb: string | null; aceiArbNoReason: string | null; pharmacistId: string; medicationTakingDetail?: string | null; leftoverMeds?: string | null; dietDetail?: string | null; seasoningDetail?: string | null; aceiArbDrug?: string | null; doctorMedChange?: string | null; doctorMedChangeDetail?: string | null; urgencyColor?: string | null; nextSeePharmacist?: string | null }[];
   medications: { id: string; patientId: string; visitId: string | null; drugName: string; strength: string | null; directions: string | null; drugClass: string; status: string; createdAt: string }[];
   drps: { id: string; patientId: string; visitId: string | null; recordedAt: string; category: string; description: string; drugs: string | null; severity: string; recommendation: string; prescriberDecision: string; prescriberReason: string | null; decidedById: string | null; pharmacistId: string }[];
 }
@@ -51,7 +52,7 @@ export class MockHttpError extends Error {
   }
 }
 
-const KEY = 'loveckd-static-demo-v3'; // v3: ACEI/ARB drug, structured leftover medicines
+const KEY = 'loveckd-static-demo-v4'; // v4: pharmacist-chosen urgency color
 const SESSION_KEY = 'loveckd-static-demo-session';
 /** Apps Script web app (apps-script/Code.gs). When set, data lives in the Google Sheet, not the browser. */
 const SHEETS_URL: string = import.meta.env.VITE_SHEETS_API_URL ?? '';
@@ -144,8 +145,8 @@ function seed(): Store {
     const v2 = { id: `v${i}b`, date: day(-40 + (i % 9)) };
     const noAcei = i % 6 === 5;
     s.visits.push(
-      { id: v1.id, patientId: pid, visitNo: 1, visitDate: v1.date, medicationTaking: 'correct', herbalOrPainkiller: false, herbalDetail: null, dietControlled: rand() < 0.6, seasoning: 'reduce_needed', furtherAdjustments: 'ลดเค็ม ทบทวนการกินยา', nextAppointment: v2.date, aceiArb: 'yes', aceiArbDrug: i % 2 ? 'losartan' : 'enalapril', aceiArbNoReason: null, pharmacistId: ph },
-      { id: v2.id, patientId: pid, visitNo: 2, visitDate: v2.date, medicationTaking: incorrect ? 'incorrect' : 'correct', herbalOrPainkiller: herbal, herbalDetail: herbal ? 'ยาแก้ปวดกลุ่ม NSAID ซื้อจากร้านขายยา' : null, dietControlled: rand() < 0.7, seasoning: rand() < 0.5 ? 'adjusted' : 'reduce_needed', furtherAdjustments: incorrect ? 'สอนวิธีกินยาความดันใหม่' : null, nextAppointment: day(appt), aceiArb: noAcei ? 'no' : 'yes', aceiArbDrug: noAcei ? null : i % 2 ? 'losartan' : 'enalapril', aceiArbNoReason: noAcei ? 'โพแทสเซียมสูง แพทย์หยุดยาไว้ก่อน' : null, pharmacistId: ph },
+      { id: v1.id, patientId: pid, visitNo: 1, visitDate: v1.date, medicationTaking: 'correct', herbalOrPainkiller: false, herbalDetail: null, dietControlled: rand() < 0.6, seasoning: 'reduce_needed', furtherAdjustments: 'ลดเค็ม ทบทวนการกินยา', nextAppointment: v2.date, nextSeePharmacist: 'yes', aceiArb: 'yes', aceiArbDrug: i % 2 ? 'losartan' : 'enalapril', aceiArbNoReason: null, pharmacistId: ph },
+      { id: v2.id, patientId: pid, visitNo: 2, visitDate: v2.date, medicationTaking: incorrect ? 'incorrect' : 'correct', herbalOrPainkiller: herbal, herbalDetail: herbal ? 'ยาแก้ปวดกลุ่ม NSAID ซื้อจากร้านขายยา' : null, dietControlled: rand() < 0.7, seasoning: rand() < 0.5 ? 'adjusted' : 'reduce_needed', furtherAdjustments: incorrect ? 'สอนวิธีกินยาความดันใหม่' : null, nextAppointment: day(appt), nextSeePharmacist: i % 3 === 0 ? 'no' : 'yes', urgencyColor: ['red', 'orange', 'yellow', null, null][i % 5], aceiArb: noAcei ? 'no' : 'yes', aceiArbDrug: noAcei ? null : i % 2 ? 'losartan' : 'enalapril', aceiArbNoReason: noAcei ? 'โพแทสเซียมสูง แพทย์หยุดยาไว้ก่อน' : null, pharmacistId: ph },
     );
     for (const [vid, vdate, g] of [[v1.id, v1.date, prevGfr], [v2.id, v2.date, gfr]] as const) {
       const at = new Date(new Date(vdate).getTime() - 3 * DAY).toISOString();
@@ -345,13 +346,12 @@ function summary(p: Store['patients'][number]): PatientSummary {
   };
 }
 
-const COLOR_ORDER = URGENCY_ORDER;
 const summaries = (status = 'active') =>
   store.patients
     .filter((p) => (p.programStatus ?? 'active') === status)
     .sort((a, b) => a.lastName.localeCompare(b.lastName, 'th'))
     .map(summary)
-    .sort((a, b) => COLOR_ORDER[a.color] - COLOR_ORDER[b.color]);
+    .sort((a, b) => urgencyRank(a.color) - urgencyRank(b.color));
 
 const profile = (p: Store['patients'][number]) => ({ ...summary(p), birthDate: p.birthDate, enrolledAt: p.enrolledAt, ckdCause: p.ckdCause, notes: p.notes, dischargeCode: p.dischargeCode ?? null, dischargeDate: p.dischargeDate ?? null, dischargeNote: p.dischargeNote ?? null });
 
@@ -441,7 +441,7 @@ const routes: [string, RegExp, Handler][] = [
     const text = q.get('q')?.toLowerCase();
     if (text) items = items.filter((p) => `${p.hn} ${p.firstName} ${p.lastName}`.toLowerCase().includes(text));
     if (q.get('stage')) items = items.filter((p) => p.stage === q.get('stage'));
-    if (q.get('color')) items = items.filter((p) => p.color === q.get('color'));
+    if (q.get('color')) items = items.filter((p) => (p.color ?? 'none') === q.get('color'));
     const page = Math.max(1, Number(q.get('page') ?? 1));
     const pageSize = 25;
     return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize };
@@ -536,10 +536,14 @@ const routes: [string, RegExp, Handler][] = [
       aceiArb: d.aceiArb,
       aceiArbNoReason: d.aceiArbNoReason ?? null,
       aceiArbDrug: d.aceiArbDrug ?? null,
+      doctorMedChange: d.doctorMedChange ?? null,
+      doctorMedChangeDetail: d.doctorMedChangeDetail ?? null,
+      urgencyColor: d.urgencyColor ?? null,
+      nextSeePharmacist: d.nextSeePharmacist ?? null,
       pharmacistId: u.id,
     };
     insert('visits', v);
-    for (const l of labs) insert('labs', { id: newId(), patientId: m[1]!, visitId: v.id, test: l.test, value: l.value, unit: l.unit, collectedAt: l.collectedAt.toISOString(), origin: 'user_entered', source: l.source });
+    for (const l of labs) insert('labs', { id: newId(), patientId: m[1]!, visitId: v.id, test: l.test, value: l.value, valueText: l.valueText ?? null, unit: l.unit, collectedAt: l.collectedAt.toISOString(), origin: 'user_entered', source: l.source });
     for (const md of medications) insert('medications', { id: newId(), patientId: m[1]!, visitId: v.id, drugName: md.drugName, strength: md.strength ?? null, directions: md.directions ?? null, drugClass: md.drugClass, status: 'active', createdAt: new Date().toISOString() });
     return { visit: v };
   }],
@@ -547,7 +551,7 @@ const routes: [string, RegExp, Handler][] = [
     clinical();
     patientOr404(m[1]!);
     const l = labCreateSchema.parse(body);
-    const lab = { id: newId(), patientId: m[1]!, visitId: null, test: l.test, value: l.value, unit: l.unit, collectedAt: l.collectedAt.toISOString(), origin: 'user_entered', source: l.source };
+    const lab = { id: newId(), patientId: m[1]!, visitId: null, test: l.test, value: l.value, valueText: l.valueText ?? null, unit: l.unit, collectedAt: l.collectedAt.toISOString(), origin: 'user_entered', source: l.source };
     insert('labs', lab);
     return { lab };
   }],
@@ -571,6 +575,10 @@ const routes: [string, RegExp, Handler][] = [
       aceiArb: d.aceiArb,
       aceiArbNoReason: d.aceiArbNoReason ?? null,
       aceiArbDrug: d.aceiArbDrug ?? null,
+      doctorMedChange: d.doctorMedChange ?? null,
+      doctorMedChangeDetail: d.doctorMedChangeDetail ?? null,
+      urgencyColor: d.urgencyColor ?? null,
+      nextSeePharmacist: d.nextSeePharmacist ?? null,
     });
     update('visits', v);
     return { visit: v };
@@ -599,7 +607,7 @@ const routes: [string, RegExp, Handler][] = [
     clinical();
     const lab = findOr404('labs', m[1]!, 'ผลแล็บ');
     const d = labUpdateSchema.parse(body);
-    Object.assign(lab, { test: d.test, value: d.value, unit: d.unit, collectedAt: d.collectedAt.toISOString(), source: d.source });
+    Object.assign(lab, { test: d.test, value: d.value, valueText: d.valueText ?? null, unit: d.unit, collectedAt: d.collectedAt.toISOString(), source: d.source });
     update('labs', lab);
     return { lab };
   }],
@@ -679,15 +687,16 @@ const routes: [string, RegExp, Handler][] = [
   ['GET', /^\/dashboard$/, () => {
     clinical();
     const patients = summaries();
-    const byColor = { red: 0, orange: 0, yellow: 0, green: 0 };
+    const byColor = { red: 0, orange: 0, yellow: 0, none: 0 };
     const byStage: Record<string, number> = { '1': 0, '2': 0, '3a': 0, '3b': 0, '4': 0, '5': 0, unknown: 0 };
     for (const p of patients) {
-      byColor[p.color] += 1;
+      byColor[p.color ?? 'none'] += 1;
       byStage[p.stage ?? 'unknown']! += 1;
     }
     return {
       counts: { total: patients.length, byColor, byStage, pendingDecisions: store.drps.filter((d) => d.prescriberDecision === 'pending').length },
       red: patients.filter((p) => p.color === 'red').slice(0, 20),
+      seePharmacistToday: seePharmacistToday(patients, new Date()),
       missed: patients.filter((p) => p.appointment === 'missed'),
       upcoming: patients.filter((p) => p.appointment === 'upcoming').sort((a, b) => (a.nextAppointment ?? '').localeCompare(b.nextAppointment ?? '')),
       insufficientData: patients.filter((p) => p.gfrFlags.includes('missing') || p.gfrFlags.includes('stale')),

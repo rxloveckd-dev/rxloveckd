@@ -1,9 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LABELS, type AceiArbCoverage, type PatientSummary, type UrgencyColor } from '@rx/shared';
+import { LABELS, URGENCY_COLORS, type AceiArbCoverage, type PatientSummary, type UrgencyColor } from '@rx/shared';
 import { api } from '../api';
 import { ColumnChart, ShareBars, StackedBar, StatTile } from '../components/charts';
-import { ErrorState, Loading } from '../components/ui';
+import { ErrorState, Loading, Urgency } from '../components/ui';
 import { num, thDate } from '../format';
 import type { MonthlySummary } from './Reports';
 import { Icon } from '../components/Icon';
@@ -11,11 +11,12 @@ import { Icon } from '../components/Icon';
 interface DashboardData {
   counts: {
     total: number;
-    byColor: Record<UrgencyColor, number>;
+    byColor: Record<UrgencyColor | 'none', number>;
     byStage: Record<string, number>;
     pendingDecisions: number;
   };
   red: PatientSummary[];
+  seePharmacistToday: PatientSummary[];
   missed: PatientSummary[];
   upcoming: PatientSummary[];
   insufficientData: PatientSummary[];
@@ -25,11 +26,10 @@ interface DashboardData {
   rules: { version: number; approved: boolean };
 }
 
-const URGENCY_COLORS: Record<UrgencyColor, string> = {
+const URGENCY_BAR: Record<UrgencyColor, string> = {
   red: 'var(--red)',
   orange: 'var(--s4)',
   yellow: 'var(--s3)',
-  green: 'var(--green)',
 };
 
 const STAGES = ['1', '2', '3a', '3b', '4', '5'] as const;
@@ -73,6 +73,23 @@ export function Dashboard() {
         <Link className="btn" to="/patients/new"><Icon name="userPlus" />ลงทะเบียนผู้ป่วย</Link>
       </div>
 
+      {data.seePharmacistToday.length > 0 && (
+        <div className="section">
+          <h3 className="tab">นัดวันนี้ ต้องพบเภสัชกร {data.seePharmacistToday.length} คน</h3>
+          <ul className="list-plain">
+            {data.seePharmacistToday.map((p) => (
+              <li key={p.id}>
+                <span className="row" style={{ gap: 8 }}>
+                  <Link to={`/patients/${p.id}`}>{p.title}{p.firstName} {p.lastName}</Link>
+                  <span className="muted">HN {p.hn}</span>
+                  {p.color && <Urgency color={p.color} />}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="stats">
         <StatTile label="ผู้ป่วยในคลินิก" value={num(counts.total)} note="คนที่กำลังติดตาม" />
         <StatTile
@@ -100,14 +117,12 @@ export function Dashboard() {
       <div className="dash-grid">
         <div className="section span-12">
           <h3 className="tab">ความเร่งด่วนในการติดตาม</h3>
-          <p className="section-sub">กดที่แถบสีเพื่อดูรายชื่อ{!data.rules.approved && ' (เกณฑ์ยังเป็นค่าเริ่มต้น รอทีมคลินิกอนุมัติ)'}</p>
+          <p className="section-sub">สีที่เภสัชกรระบุ กดที่แถบสีเพื่อดูรายชื่อ{!data.rules.approved && ' (เกณฑ์แจ้งเตือนยังเป็นค่าเริ่มต้น รอทีมคลินิกอนุมัติ)'}</p>
           <StackedBar
-            segments={(['red', 'orange', 'yellow', 'green'] as const).map((c) => ({
-              key: c,
-              label: LABELS.urgency[c],
-              value: counts.byColor[c],
-              color: URGENCY_COLORS[c],
-            }))}
+            segments={[
+              ...URGENCY_COLORS.map((c) => ({ key: c as string, label: LABELS.urgency[c], value: counts.byColor[c], color: URGENCY_BAR[c] })),
+              { key: 'none', label: 'ไม่มีสี', value: counts.byColor.none, color: '#dfe3ea' },
+            ]}
             onSelect={(c) => navigate(`/patients?color=${c}`)}
           />
         </div>

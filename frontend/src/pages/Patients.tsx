@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { LABELS } from '@rx/shared';
+import { LABELS, URGENCY_COLORS } from '@rx/shared';
 import { usePatients } from '../api';
 import { Empty, ErrorState, Loading, Stage, Urgency } from '../components/ui';
 import { num, pct, thDate } from '../format';
@@ -57,7 +57,8 @@ export function Patients() {
           <label htmlFor="color">สีความเร่งด่วน</label>
           <select id="color" value={filters.color} onChange={(e) => set('color', e.target.value)}>
             <option value="">ทุกสี</option>
-            {(['red', 'orange', 'yellow', 'green'] as const).map((c) => <option key={c} value={c}>{LABELS.urgency[c]}</option>)}
+            {URGENCY_COLORS.map((c) => <option key={c} value={c}>{LABELS.urgency[c]}</option>)}
+            <option value="none">ไม่มีสี</option>
           </select>
         </div>
       </div>

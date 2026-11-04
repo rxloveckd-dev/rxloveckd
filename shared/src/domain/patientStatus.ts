@@ -1,7 +1,7 @@
 import { labFlags, type LabTest } from './dataQuality';
 import { ckdStage, gfrChangePercent } from './gfr';
 import type { ClinicalRules } from './rules';
-import { appointmentStatus, urgency } from './urgency';
+import { appointmentStatus, followUpReasons, type UrgencyColor } from './urgency';
 import type { PatientDerived } from '../types';
 
 export interface StatusLab {
@@ -15,6 +15,8 @@ export interface StatusVisit {
   nextAppointment: Date | null;
   medicationTaking: string;
   herbalOrPainkiller: boolean;
+  urgencyColor?: string | null;
+  nextSeePharmacist?: string | null;
 }
 
 export function ageOn(birthDate: Date, today: Date): number {
@@ -48,7 +50,7 @@ export function derivePatientStatus(
   const appointment = appointmentStatus(next, today, rules);
   const latestOf = (test: string) => labs.find((l) => l.test === test)?.value ?? null;
 
-  const result = urgency(
+  const reasons = followUpReasons(
     {
       stage,
       gfrChangePct: change,
@@ -73,25 +75,28 @@ export function derivePatientStatus(
     gfrChangePct: change,
     gfrFlags,
     stage,
-    color: result.color,
-    reasons: result.reasons,
+    color: (visit?.urgencyColor ?? null) as UrgencyColor | null,
+    reasons,
     nextAppointment: next ? next.toISOString() : null,
+    nextSeePharmacist: next ? ((visit?.nextSeePharmacist ?? null) as 'yes' | 'no' | null) : null,
     appointment,
   };
 }
 
 /** Lab history, newest first, with the previous value of the same test and unit and the GFR change. */
-export function labHistory<T extends StatusLab & { unit: string }>(labs: T[], rules: ClinicalRules, today: Date) {
-  const prevByTestUnit = new Map<string, number>();
+export function labHistory<T extends StatusLab & { unit: string; valueText?: string | null }>(labs: T[], rules: ClinicalRules, today: Date) {
+  const prevByTestUnit = new Map<string, T>();
   return [...labs]
     .sort((a, b) => a.collectedAt.getTime() - b.collectedAt.getTime())
     .map((l) => {
       const key = `${l.test}|${l.unit}`;
-      const previous = prevByTestUnit.get(key) ?? null;
-      prevByTestUnit.set(key, l.value);
+      const before = prevByTestUnit.get(key);
+      const previous = before?.value ?? null;
+      prevByTestUnit.set(key, l);
       return {
         ...l,
         previous,
+        previousText: before?.valueText ?? null,
         changePct: l.test === 'gfr' ? gfrChangePercent(l.value, previous) : null,
         flags: labFlags(l.test as LabTest, l, today, rules).filter((f) => f === 'implausible'),
       };

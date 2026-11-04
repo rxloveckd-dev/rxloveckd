@@ -54,7 +54,7 @@ describe('dashboard and monthly report (US5, US6)', () => {
     await pharm.post('/api/patients').send(patientBody()).expect(201);
     const res = await pharm.get('/api/dashboard').expect(200);
     expect(res.body.counts.total).toBe(1);
-    expect(res.body.counts.byColor.yellow).toBe(1); // no GFR yet → insufficient data
+    expect(res.body.counts.byColor.none).toBe(1); // no color until a pharmacist picks one
     expect(res.body.insufficientData).toHaveLength(1);
   });
 });

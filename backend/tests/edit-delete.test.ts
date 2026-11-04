@@ -11,6 +11,7 @@ const visitBody = (overrides: Record<string, unknown> = {}) => ({
   dietControlled: true,
   seasoning: 'adjusted',
   nextAppointment: '2026-11-05',
+  nextSeePharmacist: 'yes',
   aceiArb: 'yes',
   aceiArbDrug: 'enalapril',
   labs: [{ test: 'gfr', value: 42, unit: 'mL/min/1.73m²', collectedAt: '2026-09-28' }],

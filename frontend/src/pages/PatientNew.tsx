@@ -6,6 +6,7 @@ import { Choice, ErrorState, Field, Loading, Section } from '../components/ui';
 import { DateInput } from '../components/DateInput';
 import { todayIso } from '../format';
 import { Icon } from '../components/Icon';
+import { enterToNext } from '../components/enterToNext';
 
 const EMPTY = {
   nationalId: '',
@@ -34,7 +35,7 @@ const fromProfile = (p: PatientProfile): FormState => ({
   notes: p.notes ?? '',
 });
 
-const CAUSES = ['เบาหวาน', 'ความดัน', 'ไขมันในเลือด', 'ต่อมลูกหมาก', 'เก๊าท์', 'หัวใจ'] as const;
+const CAUSES = ['เบาหวาน', 'ความดัน', 'ไขมันในเลือด', 'ต่อมลูกหมาก', 'เก๊าท์', 'หัวใจ', 'หลอดเลือดสมอง'] as const;
 
 /**
  * สาเหตุโรคไต: pick any number of causes, plus "อื่นๆ" with free text. Stored as one text,
@@ -141,7 +142,7 @@ function PatientForm({ initial, patient }: { initial: FormState; patient?: Patie
   const idOk = form.nationalId.replace(/[\s-]/g, '').length === 13 && isValidThaiNationalId(form.nationalId);
 
   return (
-    <form onSubmit={submit} noValidate>
+    <form onSubmit={submit} onKeyDown={enterToNext} noValidate>
       <h1>{editing ? 'แก้ไขข้อมูลผู้ป่วย' : 'ลงทะเบียนผู้ป่วย'}</h1>
       <Section title="ข้อมูลผู้ป่วย">
         <div className="grid-2">
@@ -171,7 +172,7 @@ function PatientForm({ initial, patient }: { initial: FormState; patient?: Patie
             <Field label="คำนำหน้า" htmlFor="title" error={errors.title}>
               <select id="title" value={form.title} onChange={(e) => set('title')(e.target.value)}>
                 <option value="">เลือก</option>
-                {['นาย', 'นาง', 'นางสาว', 'ด.ช.', 'ด.ญ.'].map((t) => <option key={t}>{t}</option>)}
+                {['นาย', 'นาง', 'นางสาว', 'ด.ช.', 'ด.ญ.', 'พระ', 'แม่ชี'].map((t) => <option key={t}>{t}</option>)}
               </select>
             </Field>
             <Field label="ชื่อ" htmlFor="fn" error={errors.firstName}>

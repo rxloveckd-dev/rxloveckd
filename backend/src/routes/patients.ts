@@ -27,7 +27,7 @@ import { listSummaries, STATUS_INCLUDE, toSummary } from '../services/patients';
 const listQuery = z.object({
   q: z.string().trim().optional(),
   stage: z.enum(['1', '2', '3a', '3b', '4', '5']).optional(),
-  color: z.enum(['green', 'yellow', 'orange', 'red']).optional(),
+  color: z.enum(['yellow', 'orange', 'red', 'none']).optional(),
   appointment: z.enum(['upcoming', 'missed']).optional(),
   status: z.enum(['active', 'discharged']).default('active'),
   page: z.coerce.number().int().min(1).default(1),
@@ -66,7 +66,7 @@ export function patientsRouter(): Router {
       items = items.filter((p) => `${p.hn} ${p.firstName} ${p.lastName}`.toLowerCase().includes(needle));
     }
     if (q.stage) items = items.filter((p) => p.stage === q.stage);
-    if (q.color) items = items.filter((p) => p.color === q.color);
+    if (q.color) items = items.filter((p) => (p.color ?? 'none') === q.color);
     if (q.appointment) items = items.filter((p) => p.appointment === q.appointment);
     const total = items.length;
     const start = (q.page - 1) * q.pageSize;

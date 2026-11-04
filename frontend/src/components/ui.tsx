@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { LABELS, type UrgencyColor } from '@rx/shared';
+import { LABELS, URGENCY_COLORS, type UrgencyColor } from '@rx/shared';
 import { ApiError } from '../api';
 import { Icon } from './Icon';
 
@@ -15,8 +15,24 @@ export function Section({ title, children, action }: { title: string; children: 
   );
 }
 
-export function Urgency({ color }: { color: UrgencyColor }) {
+export function Urgency({ color }: { color: UrgencyColor | null }) {
+  if (!color) return <span className="muted">–</span>;
   return <span className={`badge ${color}`}>{LABELS.urgency[color]}</span>;
+}
+
+/** สีความเร่งด่วน: the pharmacist's choice; "ไม่มีสี" clears it once the patient has improved. */
+export function UrgencyPicker({ name, value, onChange }: { name: string; value: UrgencyColor | ''; onChange: (v: UrgencyColor | '') => void }) {
+  const options = [...URGENCY_COLORS, ''] as const;
+  return (
+    <div className="choice" role="radiogroup" aria-label="สีความเร่งด่วน">
+      {options.map((c) => (
+        <label key={c || 'none'} className={c ? `tone-${c}` : undefined}>
+          <input type="radio" name={name} value={c} checked={value === c} onChange={() => onChange(c)} />
+          {c ? LABELS.urgency[c] : 'ไม่มีสี'}
+        </label>
+      ))}
+    </div>
+  );
 }
 
 /** Stage badge colored like the clinic's scheme: 1–2 green, 3a–3b yellow, 4 pink, 5 red. */

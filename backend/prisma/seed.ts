@@ -114,6 +114,7 @@ async function main() {
         seasoning: 'reduce_needed',
         furtherAdjustments: 'ลดเค็ม ทบทวนการกินยา',
         nextAppointment: visit2,
+        nextSeePharmacist: 'yes',
         aceiArb: 'yes',
         aceiArbDrug: i % 2 ? 'losartan' : 'enalapril',
         pharmacistId: pharmacist.id,
@@ -135,6 +136,8 @@ async function main() {
         aceiArb: noAceiArb ? 'no' : 'yes',
         aceiArbDrug: noAceiArb ? null : i % 2 ? 'losartan' : 'enalapril',
         aceiArbNoReason: noAceiArb ? 'โพแทสเซียมสูง แพทย์หยุดยาไว้ก่อน' : null,
+        urgencyColor: ['red', 'orange', 'yellow', null, null][i % 5],
+        nextSeePharmacist: i % 3 === 0 ? 'no' : 'yes',
         pharmacistId: pharmacist.id,
       },
     });

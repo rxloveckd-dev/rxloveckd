@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
-import { aceiArbCoverage, lastMonths, LABELS, type CkdStage, type UrgencyColor } from '@rx/shared';
+import { aceiArbCoverage, buddhistMonth, lastMonths, LABELS, seePharmacistToday, type CkdStage, type UrgencyColor } from '@rx/shared';
 import { prisma } from '../db';
 import { audit } from '../audit';
 import { CLINICAL, requireRole } from '../auth';
@@ -22,10 +22,10 @@ export function dashboardRouter(): Router {
   r.get('/dashboard', async (_req, res) => {
     const rules = await activeRules();
     const patients = await listSummaries(rules, new Date());
-    const byColor: Record<UrgencyColor, number> = { red: 0, orange: 0, yellow: 0, green: 0 };
+    const byColor: Record<UrgencyColor | 'none', number> = { red: 0, orange: 0, yellow: 0, none: 0 };
     const byStage: Record<CkdStage | 'unknown', number> = { '1': 0, '2': 0, '3a': 0, '3b': 0, '4': 0, '5': 0, unknown: 0 };
     for (const p of patients) {
-      byColor[p.color] += 1;
+      byColor[p.color ?? 'none'] += 1;
       byStage[p.stage ?? 'unknown'] += 1;
     }
     const pendingDecisions = await prisma.drp.count({ where: { prescriberDecision: 'pending' } });
@@ -39,6 +39,7 @@ export function dashboardRouter(): Router {
       aceiArb: aceiArbCoverage(visits, patients.map((p) => p.id)),
       counts: { total: patients.length, byColor, byStage, pendingDecisions },
       red: patients.filter((p) => p.color === 'red').slice(0, 20),
+      seePharmacistToday: seePharmacistToday(patients, new Date()),
       missed: patients.filter((p) => p.appointment === 'missed'),
       upcoming: patients
         .filter((p) => p.appointment === 'upcoming')
@@ -72,7 +73,7 @@ export function dashboardRouter(): Router {
       { header: 'จำนวน', key: 'value', width: 12 },
     ];
     ws.addRows([
-      { label: 'เดือน', value: s.month },
+      { label: 'เดือน', value: buddhistMonth(s.month) },
       { label: 'จำนวนครั้งที่ผู้ป่วยมาติดตาม', value: s.visits },
       { label: 'จำนวนผู้ป่วยที่มาติดตาม (คน)', value: s.patientsSeen },
       { label: 'ผู้ป่วยลงทะเบียนใหม่', value: s.newEnrollments },

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LABELS, type DischargeCode, type MonthlySummary, type PatientSummary, type SessionUser } from '@rx/shared';
+import { buddhistMonth, LABELS, type DischargeCode, type MonthlySummary, type PatientSummary, type SessionUser } from '@rx/shared';
 
 /** GitHub Pages build: no server, the API is answered in the browser with synthetic data. */
 export const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
@@ -52,7 +52,7 @@ export async function downloadMonthlyReport(month: string) {
   }
   const s = await api<MonthlySummary>(`/reports/monthly?month=${month}`);
   const rows: [string, string | number][] = [
-    ['เดือน', s.month],
+    ['เดือน', buddhistMonth(s.month)],
     ['จำนวนครั้งที่ผู้ป่วยมาติดตาม', s.visits],
     ['จำนวนผู้ป่วยที่มาติดตาม (คน)', s.patientsSeen],
     ['ผู้ป่วยลงทะเบียนใหม่', s.newEnrollments],

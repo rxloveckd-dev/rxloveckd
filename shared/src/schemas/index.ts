@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { isValidThaiNationalId, normalizeNationalId } from '../domain/thaiId';
 import { HN_LENGTH, isValidHn, normalizeHn } from '../domain/hn';
+import { URGENCY_COLORS } from '../domain/urgency';
 
-const isoDate = z.coerce.date({ invalid_type_error: 'วันที่ไม่ถูกต้อง' });
+const isoDate = z.coerce.date({ errorMap: () => ({ message: 'วันที่ไม่ถูกต้อง' }) });
 const optionalText = z.string().trim().max(2000).optional().nullable();
 
 export const SEX = ['male', 'female'] as const;
@@ -10,6 +11,9 @@ export const PROGRAM_STATUS = ['active', 'discharged'] as const;
 export const DISCHARGE_CODES = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'] as const;
 export type DischargeCode = (typeof DISCHARGE_CODES)[number];
 export const LAB_TESTS = ['gfr', 'scr', 'hba1c', 'albumin', 'potassium', 'sbp', 'dbp'] as const;
+/** Usual albumin results; staff may also type another. Kept in `valueText`, with `value` 0. */
+export const ALBUMIN_LEVELS = ['>30', '30–300', '>300', 'ปกติ'] as const;
+export const YES_NO = ['yes', 'no'] as const;
 export const ACEI_ARB = ['yes', 'no'] as const;
 export const ACEI_ARB_DRUGS = ['enalapril', 'losartan'] as const;
 export const MEDICATION_TAKING = ['correct', 'incorrect'] as const;
@@ -68,6 +72,7 @@ export type DischargeInput = z.infer<typeof dischargeSchema>;
 export const labCreateSchema = z.object({
   test: z.enum(LAB_TESTS),
   value: z.coerce.number({ invalid_type_error: 'ค่าผลแล็บต้องเป็นตัวเลข' }),
+  valueText: z.string().trim().max(30, 'ค่า Albumin ยาวเกิน 30 ตัวอักษร').optional().nullable(),
   unit: z.string().trim().min(1, 'กรุณาระบุหน่วย').max(30),
   collectedAt: isoDate,
   source: z.string().trim().max(50).default('บันทึกเอง'),
@@ -134,6 +139,10 @@ const visitFields = {
   aceiArb: z.enum(ACEI_ARB, { errorMap: () => ({ message: 'กรุณาเลือกว่ามียากลุ่ม ACEI/ARB หรือไม่' }) }),
   aceiArbDrug: z.enum(ACEI_ARB_DRUGS).optional().nullable(),
   aceiArbNoReason: optionalText,
+  doctorMedChange: z.enum(YES_NO).optional().nullable(),
+  doctorMedChangeDetail: optionalText,
+  urgencyColor: z.enum(URGENCY_COLORS).optional().nullable(),
+  nextSeePharmacist: z.enum(YES_NO).optional().nullable(),
 };
 type VisitRuleInput = {
   visitDate: Date;
@@ -141,6 +150,9 @@ type VisitRuleInput = {
   aceiArb: 'yes' | 'no';
   aceiArbDrug?: (typeof ACEI_ARB_DRUGS)[number] | null;
   aceiArbNoReason?: string | null;
+  doctorMedChange?: 'yes' | 'no' | null;
+  doctorMedChangeDetail?: string | null;
+  nextSeePharmacist?: 'yes' | 'no' | null;
   medicationTaking: 'correct' | 'incorrect';
   herbalOrPainkiller: boolean;
   dietControlled: boolean;
@@ -152,6 +164,10 @@ const APPOINTMENT_RULE = { message: 'วันนัดครั้งต่อ�
 const ACEI_RULE = { message: 'กรุณาระบุเหตุผลที่ไม่ได้รับยากลุ่ม ACEI/ARB', path: ['aceiArbNoReason'] };
 const aceiDrugChosen = (v: VisitRuleInput) => v.aceiArb === 'no' || !!v.aceiArbDrug;
 const ACEI_DRUG_RULE = { message: 'กรุณาเลือกยากลุ่ม ACEI/ARB ที่ผู้ป่วยใช้ (Enalapril หรือ Losartan)', path: ['aceiArbDrug'] };
+const doctorChangeGiven = (v: VisitRuleInput) => v.doctorMedChange !== 'yes' || !!v.doctorMedChangeDetail;
+const DOCTOR_CHANGE_RULE = { message: 'กรุณาระบุการปรับเปลี่ยนยาของแพทย์', path: ['doctorMedChangeDetail'] };
+const seePharmacistChosen = (v: VisitRuleInput) => !v.nextAppointment || !!v.nextSeePharmacist;
+const SEE_PHARMACIST_RULE = { message: 'กรุณาเลือกว่าครั้งถัดไปต้องพบเภสัชกรหรือไม่', path: ['nextSeePharmacist'] };
 /** Drops a "please specify" text whose answer no longer asks for one (e.g. ไม่ถูกต้อง changed to ถูกต้อง). */
 const clearUnusedDetails = <T extends VisitRuleInput>(v: T): T => ({
   ...v,
@@ -161,6 +177,8 @@ const clearUnusedDetails = <T extends VisitRuleInput>(v: T): T => ({
   ...(!v.herbalOrPainkiller && { herbalDetail: null }),
   ...(v.dietControlled && { dietDetail: null }),
   ...(v.seasoning === 'adjusted' && { seasoningDetail: null }),
+  ...(v.doctorMedChange !== 'yes' && { doctorMedChangeDetail: null }),
+  ...(!v.nextAppointment && { nextSeePharmacist: null }),
 });
 
 export const visitCreateSchema = z
@@ -172,6 +190,8 @@ export const visitCreateSchema = z
   .refine(appointmentAfterVisit, APPOINTMENT_RULE)
   .refine(aceiReasonGiven, ACEI_RULE)
   .refine(aceiDrugChosen, ACEI_DRUG_RULE)
+  .refine(doctorChangeGiven, DOCTOR_CHANGE_RULE)
+  .refine(seePharmacistChosen, SEE_PHARMACIST_RULE)
   .transform(clearUnusedDetails);
 export type VisitCreate = z.infer<typeof visitCreateSchema>;
 
@@ -181,6 +201,8 @@ export const visitUpdateSchema = z
   .refine(appointmentAfterVisit, APPOINTMENT_RULE)
   .refine(aceiReasonGiven, ACEI_RULE)
   .refine(aceiDrugChosen, ACEI_DRUG_RULE)
+  .refine(doctorChangeGiven, DOCTOR_CHANGE_RULE)
+  .refine(seePharmacistChosen, SEE_PHARMACIST_RULE)
   .transform(clearUnusedDetails);
 export type VisitUpdate = z.infer<typeof visitUpdateSchema>;
 

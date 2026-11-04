@@ -41,7 +41,7 @@ describe('patients (US1)', () => {
     const res = await pharm.get(`/api/patients/${id}`).expect(200);
     expect(res.body.patient.stage).toBe('3b');
     expect(res.body.patient.gfrChangePct).toBeCloseTo(-30, 5);
-    expect(res.body.patient.color).toBe('red');
+    expect(res.body.patient.color).toBeNull(); // only a pharmacist sets the color
     expect(res.body.patient.reasons).toContain('GFR ลดลง 30.0% (มากกว่า 25%)');
     expect(await prisma.auditLog.count({ where: { action: 'view', entity: 'patient' } })).toBe(1);
   });
@@ -52,7 +52,12 @@ describe('patients (US1)', () => {
     await pharm.post(`/api/patients/${body.patient.id}/labs`).send({ test: 'gfr', value: 20, unit: 'mL/min/1.73m²', collectedAt: '2026-10-25' });
     expect((await pharm.get('/api/patients?stage=4')).body.items).toHaveLength(1);
     expect((await pharm.get('/api/patients?stage=2')).body.items).toHaveLength(0);
-    expect((await pharm.get('/api/patients?color=orange')).body.items).toHaveLength(1); // stage 4 = orange
+    expect((await pharm.get('/api/patients?color=none')).body.items).toHaveLength(1); // stage does not set a color
+    await pharm
+      .post(`/api/patients/${body.patient.id}/visits`)
+      .send({ visitDate: '2026-10-25', medicationTaking: 'correct', herbalOrPainkiller: false, dietControlled: true, seasoning: 'adjusted', aceiArb: 'yes', aceiArbDrug: 'enalapril', urgencyColor: 'orange' })
+      .expect(201);
+    expect((await pharm.get('/api/patients?color=orange')).body.items).toHaveLength(1);
     expect((await pharm.get('/api/patients?color=red')).body.items).toHaveLength(0);
   });
 

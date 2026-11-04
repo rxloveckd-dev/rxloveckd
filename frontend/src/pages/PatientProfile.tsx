@@ -10,12 +10,17 @@ import {
   labUpdateSchema,
   medicationCreateSchema,
   parseLeftovers,
+  potassiumOutOfRange,
   SEVERITY,
   visitUpdateSchema,
   type DischargeCode,
+  type UrgencyColor,
 } from '@rx/shared';
 import { ApiError, useMe, usePatient, usePatientList, usePatientMutation, type PatientProfile as PatientProfileData } from '../api';
-import { Choice, Empty, ErrorState, Field, Loading, RowActions, Section, Stage, Urgency } from '../components/ui';
+import { Choice, Empty, ErrorState, Field, Loading, RowActions, Section, Stage, Urgency, UrgencyPicker } from '../components/ui';
+import { AlbuminInput } from '../components/AlbuminInput';
+import { DateInput } from '../components/DateInput';
+import { enterToNext } from '../components/enterToNext';
 import { num, pct, thDate, todayIso } from '../format';
 import { Icon } from '../components/Icon';
 import { LeftoverEditor, leftoverPayload, leftoverRowsFrom, leftoverText } from '../components/LeftoverEditor';
@@ -38,16 +43,22 @@ interface VisitRow {
   aceiArb: 'yes' | 'no' | null;
   aceiArbNoReason: string | null;
   aceiArbDrug?: 'enalapril' | 'losartan' | null;
+  doctorMedChange?: 'yes' | 'no' | null;
+  doctorMedChangeDetail?: string | null;
+  urgencyColor?: UrgencyColor | null;
+  nextSeePharmacist?: 'yes' | 'no' | null;
   pharmacistName: string;
 }
 interface LabRow {
   id: string;
   test: keyof typeof LABELS.labTest;
   value: number;
+  valueText?: string | null;
   unit: string;
   collectedAt: string;
   source: string;
   previous: number | null;
+  previousText?: string | null;
   changePct: number | null;
   flags: string[];
 }
@@ -104,6 +115,10 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
     seasoning: visit.seasoning,
     furtherAdjustments: visit.furtherAdjustments ?? '',
     nextAppointment: visit.nextAppointment?.slice(0, 10) ?? '',
+    nextSeePharmacist: (visit.nextSeePharmacist ?? '') as '' | 'yes' | 'no',
+    urgencyColor: (visit.urgencyColor ?? '') as UrgencyColor | '',
+    doctorMedChange: (visit.doctorMedChange ?? '') as '' | 'yes' | 'no',
+    doctorMedChangeDetail: visit.doctorMedChangeDetail ?? '',
   });
   const [error, setError] = useState('');
   const set = <K extends keyof typeof f>(k: K) => (v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
@@ -123,6 +138,10 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
       seasoningDetail: f.seasoningDetail || null,
       furtherAdjustments: f.furtherAdjustments || null,
       nextAppointment: f.nextAppointment || null,
+      nextSeePharmacist: f.nextAppointment ? f.nextSeePharmacist || null : null,
+      urgencyColor: f.urgencyColor || null,
+      doctorMedChange: f.doctorMedChange || null,
+      doctorMedChangeDetail: f.doctorMedChange === 'yes' ? f.doctorMedChangeDetail : null,
       aceiArb: f.aceiArb || undefined,
       aceiArbNoReason: f.aceiArb === 'no' ? f.aceiArbNoReason : null,
       aceiArbDrug: f.aceiArb === 'yes' ? f.aceiArbDrug || null : null,
@@ -139,13 +158,25 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
   }
 
   return (
-    <form onSubmit={submit} noValidate>
+    <form onSubmit={submit} onKeyDown={enterToNext} noValidate>
       <div className="grid-2">
         <Field label="วันที่มา" htmlFor={`vd-${visit.id}`}>
-          <input id={`vd-${visit.id}`} type="date" value={f.visitDate} onChange={(e) => set('visitDate')(e.target.value)} />
+          <DateInput id={`vd-${visit.id}`} value={f.visitDate} onChange={set('visitDate')} />
         </Field>
         <Field label="นัดครั้งต่อไป" htmlFor={`na-${visit.id}`}>
-          <input id={`na-${visit.id}`} type="date" value={f.nextAppointment} min={f.visitDate} onChange={(e) => set('nextAppointment')(e.target.value)} />
+          <DateInput id={`na-${visit.id}`} value={f.nextAppointment} min={f.visitDate} onChange={set('nextAppointment')} />
+        </Field>
+        <Field label="ครั้งถัดไป">
+          <Choice name={`see-${visit.id}`} value={f.nextSeePharmacist} options={[['yes', LABELS.nextSeePharmacist.yes], ['no', LABELS.nextSeePharmacist.no]]} onChange={set('nextSeePharmacist')} />
+        </Field>
+        <Field label="สีความเร่งด่วน">
+          <UrgencyPicker name={`urgency-${visit.id}`} value={f.urgencyColor} onChange={set('urgencyColor')} />
+        </Field>
+        <Field label="แพทย์มีการปรับเปลี่ยนยา">
+          <Choice name={`doc-${visit.id}`} value={f.doctorMedChange} options={[['yes', 'มี'], ['no', 'ไม่มี']]} onChange={set('doctorMedChange')} />
+          {f.doctorMedChange === 'yes' && (
+            <input aria-label="ระบุการปรับเปลี่ยนยา" placeholder="ระบุการปรับเปลี่ยนยา" value={f.doctorMedChangeDetail} onChange={(e) => set('doctorMedChangeDetail')(e.target.value)} className="detail-input" />
+          )}
         </Field>
         <Field label="ยากลุ่ม ACEI/ARB">
           <Choice name={`acei-${visit.id}`} value={f.aceiArb} options={[['yes', 'มี'], ['no', 'ไม่มี']]} onChange={set('aceiArb')} />
@@ -182,7 +213,7 @@ function VisitEditForm({ patientId, visit, onDone }: { patientId: string; visit:
             <input aria-label="ระบุเครื่องปรุงที่ควรลด" placeholder="ระบุ" value={f.seasoningDetail} onChange={(e) => set('seasoningDetail')(e.target.value)} className="detail-input warn" />
           )}
         </Field>
-        <Field label="สิ่งที่ต้องปรับเพิ่ม" htmlFor={`fu-${visit.id}`}>
+        <Field label="Note เภสัชกร" htmlFor={`fu-${visit.id}`}>
           <textarea id={`fu-${visit.id}`} value={f.furtherAdjustments} onChange={(e) => set('furtherAdjustments')(e.target.value)} />
         </Field>
       </div>
@@ -257,6 +288,11 @@ function Visits({ id }: { id: string }) {
                   {v.aceiArb === 'yes' && v.aceiArbDrug ? ` (${LABELS.aceiArbDrug[v.aceiArbDrug]})` : ''}
                   {v.aceiArb === 'no' && v.aceiArbNoReason ? ` เพราะ${v.aceiArbNoReason}` : ''}
                 </dd>
+                <dt className="muted">แพทย์ปรับเปลี่ยนยา</dt>
+                <dd style={{ margin: 0 }}>
+                  {v.doctorMedChange ? LABELS.doctorMedChange[v.doctorMedChange] : '–'}
+                  {v.doctorMedChange === 'yes' && v.doctorMedChangeDetail ? `: ${v.doctorMedChangeDetail}` : ''}
+                </dd>
                 <dt className="muted">การกินยา</dt>
                 <dd style={{ margin: 0 }} className={v.medicationTaking === 'incorrect' ? 'down' : ''}>
                   {LABELS.medicationTaking[v.medicationTaking]}
@@ -271,14 +307,19 @@ function Visits({ id }: { id: string }) {
                 <dt className="muted">อาหาร</dt>
                 <dd style={{ margin: 0 }} className={v.dietControlled ? '' : 'down'}>{v.dietControlled ? 'คุม' : `ไม่คุม${v.dietDetail ? `: ${v.dietDetail}` : ''}`}</dd>
                 <dt className="muted">เครื่องปรุง</dt>
-                <dd style={{ margin: 0 }}>
+                <dd style={{ margin: 0 }} className={v.seasoning === 'reduce_needed' ? 'down' : ''}>
                   {LABELS.seasoning[v.seasoning]}
                   {v.seasoning === 'reduce_needed' && v.seasoningDetail ? `: ${v.seasoningDetail}` : ''}
                 </dd>
-                <dt className="muted">สิ่งที่ต้องปรับเพิ่ม</dt>
+                <dt className="muted">Note เภสัชกร</dt>
                 <dd style={{ margin: 0 }}>{v.furtherAdjustments || '–'}</dd>
                 <dt className="muted">นัดครั้งต่อไป</dt>
-                <dd style={{ margin: 0 }}>{thDate(v.nextAppointment)}</dd>
+                <dd style={{ margin: 0 }}>
+                  {thDate(v.nextAppointment)}
+                  {v.nextSeePharmacist ? ` (${LABELS.nextSeePharmacist[v.nextSeePharmacist]})` : ''}
+                </dd>
+                <dt className="muted">สีความเร่งด่วน</dt>
+                <dd style={{ margin: 0 }}><Urgency color={v.urgencyColor ?? null} /></dd>
                 <dt className="muted">เภสัชกร</dt>
                 <dd style={{ margin: 0 }}>{v.pharmacistName}</dd>
               </dl>
@@ -294,16 +335,19 @@ function Visits({ id }: { id: string }) {
 
 type LabTest = keyof typeof LABELS.labTest;
 
+/** Albumin shows its level; other tests, and albumin saved as a number before, show the number. */
+const labValue = (l: LabRow) => l.valueText ?? num(l.value, 2);
+
 /** Add (no `lab`) or edit one lab result. */
 function LabForm({ patientId, lab, onDone }: { patientId: string; lab?: LabRow; onDone?: () => void }) {
   const save = usePatientMutation<unknown, unknown>(patientId, lab ? `/labs/${lab.id}` : `/patients/${patientId}/labs`, lab ? 'PATCH' : 'POST');
-  const blank = { test: 'gfr' as LabTest, value: '', collectedAt: todayIso(), source: 'บันทึกเอง' };
-  const [f, setF] = useState(lab ? { test: lab.test, value: String(lab.value), collectedAt: lab.collectedAt.slice(0, 10), source: lab.source } : blank);
+  const blank = { test: 'gfr' as LabTest, value: '', valueText: '', collectedAt: todayIso(), source: 'บันทึกเอง' };
+  const [f, setF] = useState(lab ? { test: lab.test, value: String(lab.value), valueText: lab.valueText ?? '', collectedAt: lab.collectedAt.slice(0, 10), source: lab.source } : blank);
   const [error, setError] = useState('');
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const body = { ...f, unit: LABELS.labUnit[f.test] };
+    const body = { ...f, valueText: f.valueText.trim() || null, unit: LABELS.labUnit[f.test] };
     const parsed = labUpdateSchema.safeParse(body);
     if (!parsed.success || f.value.trim() === '') return setError(f.value.trim() === '' ? 'กรุณากรอกค่า' : parsed.error!.issues[0]?.message ?? 'ข้อมูลไม่ครบ');
     setError('');
@@ -317,19 +361,39 @@ function LabForm({ patientId, lab, onDone }: { patientId: string; lab?: LabRow; 
   }
 
   const key = lab?.id ?? 'new';
+  const oldAlbumin = lab?.test === 'albumin' && !lab.valueText ? String(lab.value) : '';
+  const range = f.test === 'hba1c' || f.test === 'potassium' ? ` (${LABELS.labRange[f.test]})` : '';
+  const potassiumOff = f.test === 'potassium' && f.value.trim() !== '' && potassiumOutOfRange(Number(f.value));
   return (
-    <form onSubmit={submit} noValidate>
+    <form onSubmit={submit} onKeyDown={enterToNext} noValidate>
       <div className="grid-3">
         <Field label="รายการ" htmlFor={`lt-${key}`}>
-          <select id={`lt-${key}`} value={f.test} onChange={(e) => setF({ ...f, test: e.target.value as LabTest })}>
+          <select
+            id={`lt-${key}`}
+            value={f.test}
+            onChange={(e) => {
+              const test = e.target.value as LabTest;
+              const kindChanged = (test === 'albumin') !== (f.test === 'albumin');
+              setF({ ...f, test, ...(kindChanged && { value: '', valueText: '' }) });
+            }}
+          >
             {LAB_TESTS.map((t) => <option key={t} value={t}>{LABELS.labTest[t]}</option>)}
           </select>
         </Field>
-        <Field label={`ค่า (${LABELS.labUnit[f.test]})`} htmlFor={`lv-${key}`}>
-          <input id={`lv-${key}`} inputMode="decimal" value={f.value} onChange={(e) => setF({ ...f, value: e.target.value })} />
+        <Field label={`ค่า (${LABELS.labUnit[f.test]})${range}`} htmlFor={`lv-${key}`} error={potassiumOff ? 'นอกช่วงปกติ' : undefined}>
+          {f.test === 'albumin' ? (
+            <AlbuminInput
+              id={`lv-${key}`}
+              value={f.valueText}
+              emptyLabel={oldAlbumin ? `ค่าเดิม ${oldAlbumin}` : 'เลือก'}
+              onChange={(valueText) => setF({ ...f, valueText, value: valueText.trim() ? '0' : oldAlbumin })}
+            />
+          ) : (
+            <input id={`lv-${key}`} inputMode="decimal" className={potassiumOff ? 'out-of-range' : undefined} value={f.value} onChange={(e) => setF({ ...f, value: e.target.value })} />
+          )}
         </Field>
         <Field label="วันที่ตรวจ" htmlFor={`ld-${key}`}>
-          <input id={`ld-${key}`} type="date" value={f.collectedAt} onChange={(e) => setF({ ...f, collectedAt: e.target.value })} />
+          <DateInput id={`ld-${key}`} value={f.collectedAt} onChange={(collectedAt) => setF({ ...f, collectedAt })} />
         </Field>
       </div>
       <FormButtons busy={save.isPending} error={error} onCancel={onDone} label={lab ? 'บันทึกการแก้ไข' : 'เพิ่มผลแล็บ'} />
@@ -367,19 +431,19 @@ function Labs({ id }: { id: string }) {
                   <tr key={l.id}>
                     <td className="lead">{LABELS.labTest[l.test] ?? l.test}</td>
                     <td data-label="วันที่ตรวจ">{thDate(l.collectedAt)}</td>
-                    <td data-label="ค่า" className="num">
-                      {num(l.value, 2)}
+                    <td data-label="ค่า" className={`num ${l.test === 'potassium' && potassiumOutOfRange(l.value) ? 'down' : ''}`}>
+                      {labValue(l)}
                       {l.flags.includes('implausible') && <div className="down" style={{ fontSize: '0.8rem' }}>ค่าผิดปกติ ตรวจสอบ</div>}
                     </td>
                     <td data-label="หน่วย">{l.unit}</td>
-                    <td data-label="ครั้งก่อน" className="num">{num(l.previous, 2)}</td>
+                    <td data-label="ครั้งก่อน" className="num">{l.previousText ?? num(l.previous, 2)}</td>
                     <td data-label="เปลี่ยนแปลง" className={`num ${l.changePct !== null && l.changePct <= -10 ? 'down' : ''}`}>{l.test === 'gfr' ? pct(l.changePct) : ''}</td>
                     <td data-label="ที่มา" className="muted">{l.source}</td>
                     <td data-label="">
                       <RowActions
                         busy={remove.isPending}
                         onEdit={() => setEditing(l.id)}
-                        confirmText={`ลบผล ${LABELS.labTest[l.test] ?? l.test} = ${l.value} ${l.unit} (${thDate(l.collectedAt)})?`}
+                        confirmText={`ลบผล ${LABELS.labTest[l.test] ?? l.test} = ${l.valueText ?? l.value} ${l.unit} (${thDate(l.collectedAt)})?`}
                         onDelete={() => {
                           setDelError('');
                           if (editing === l.id) setEditing(null);
@@ -427,7 +491,7 @@ function MedForm({ patientId, med, onDone }: { patientId: string; med?: MedRow; 
 
   const key = med?.id ?? 'new';
   return (
-    <form onSubmit={submit} noValidate>
+    <form onSubmit={submit} onKeyDown={enterToNext} noValidate>
       <div className="grid-2">
         <Field label="ชื่อยา" htmlFor={`mn-${key}`}><input id={`mn-${key}`} value={f.drugName} onChange={(e) => setF({ ...f, drugName: e.target.value })} /></Field>
         <Field label="ความแรง" htmlFor={`ms-${key}`}><input id={`ms-${key}`} value={f.strength} onChange={(e) => setF({ ...f, strength: e.target.value })} /></Field>
@@ -522,6 +586,7 @@ function DrpDecision({ patientId, drp }: { patientId: string; drp: DrpRow }) {
   return (
     <form
       className="row"
+      onKeyDown={enterToNext}
       onSubmit={async (e) => {
         e.preventDefault();
         setError('');
@@ -569,7 +634,7 @@ function DrpForm({ patientId, drp, onDone }: { patientId: string; drp?: DrpRow; 
 
   const key = drp?.id ?? 'new';
   return (
-    <form onSubmit={submit} className="grid-2" noValidate>
+    <form onSubmit={submit} onKeyDown={enterToNext} className="grid-2" noValidate>
       <Field label="ประเภท" htmlFor={`cat-${key}`}>
         <select id={`cat-${key}`} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
           {DRP_CATEGORY.map((c) => <option key={c} value={c}>{LABELS.drpCategory[c]}</option>)}
@@ -718,7 +783,7 @@ function DischargePanel({ p }: { p: PatientProfileData }) {
 
   return (
     <Section title="จำหน่ายผู้ป่วย">
-      <form onSubmit={submit} className="grid-3">
+      <form onSubmit={submit} onKeyDown={enterToNext} className="grid-3">
         <Field label="สถานะจำหน่าย" htmlFor="dc">
           <select id="dc" value={code} onChange={(e) => setCode(e.target.value as DischargeCode)}>
             <option value="">เลือกสถานะ</option>
@@ -728,7 +793,7 @@ function DischargePanel({ p }: { p: PatientProfileData }) {
           </select>
         </Field>
         <Field label="วันที่จำหน่าย" htmlFor="dd">
-          <input id="dd" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <DateInput id="dd" value={date} onChange={setDate} />
         </Field>
         <Field label={code === '12' ? 'ระบุสาเหตุ' : 'หมายเหตุ (ถ้ามี)'} htmlFor="dn">
           <input id="dn" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -761,7 +826,7 @@ export function PatientProfile() {
         <div>
           <div className="row">
             <h1>{p.title}{p.firstName} {p.lastName}</h1>
-            <Urgency color={p.color} />
+            {p.color && <Urgency color={p.color} />}
           </div>
           <p className="muted" style={{ margin: '4px 0 0' }}>
             HN {p.hn}, เลขบัตร {p.nationalIdMasked}, อายุ {p.age} ปี, {LABELS.sex[p.sex]}, เข้าคลินิก {thDate(p.enrolledAt)}
@@ -792,7 +857,7 @@ export function PatientProfile() {
                   : undefined
               }
             />
-            <span className="muted">นัดครั้งต่อไป {thDate(p.nextAppointment)}{p.appointment === 'missed' ? ' (เลยนัด)' : ''}</span>
+            <span className="muted">นัดครั้งต่อไป {thDate(p.nextAppointment)}{p.appointment === 'missed' ? ' (เลยนัด)' : ''}{p.nextSeePharmacist ? ` (${LABELS.nextSeePharmacist[p.nextSeePharmacist]})` : ''}</span>
           </div>
         </div>
         <div className="gfr-figure">

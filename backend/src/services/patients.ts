@@ -1,7 +1,7 @@
 import type { LabResult, Patient, Prisma, Visit } from '@prisma/client';
 import {
   derivePatientStatus,
-  URGENCY_ORDER,
+  urgencyRank,
   maskNationalId,
   type ClinicalRules,
   type PatientDerived,
@@ -11,7 +11,7 @@ import { prisma } from '../db';
 
 export type PatientWithStatusData = Patient & {
   labs: Pick<LabResult, 'test' | 'value' | 'collectedAt'>[];
-  visits: Pick<Visit, 'visitDate' | 'nextAppointment' | 'medicationTaking' | 'herbalOrPainkiller'>[];
+  visits: Pick<Visit, 'visitDate' | 'nextAppointment' | 'medicationTaking' | 'herbalOrPainkiller' | 'urgencyColor' | 'nextSeePharmacist'>[];
 };
 
 /** Labs needed for status, newest first; only the latest visit. */
@@ -22,7 +22,7 @@ export const STATUS_INCLUDE = {
     orderBy: [{ collectedAt: 'desc' }, { createdAt: 'desc' }],
   },
   visits: {
-    select: { visitDate: true, nextAppointment: true, medicationTaking: true, herbalOrPainkiller: true },
+    select: { visitDate: true, nextAppointment: true, medicationTaking: true, herbalOrPainkiller: true, urgencyColor: true, nextSeePharmacist: true },
     orderBy: [{ visitDate: 'desc' }, { visitNo: 'desc' }],
     take: 1,
   },
@@ -46,8 +46,6 @@ export function toSummary(p: PatientWithStatusData, rules: ClinicalRules, today:
   };
 }
 
-const COLOR_ORDER = URGENCY_ORDER;
-
 /** All patients in the program with derived status, most urgent first. */
 export async function listSummaries(rules: ClinicalRules, today: Date, status: 'active' | 'discharged' = 'active') {
   const rows = await prisma.patient.findMany({
@@ -57,5 +55,5 @@ export async function listSummaries(rules: ClinicalRules, today: Date, status: '
   });
   return rows
     .map((p) => toSummary(p, rules, today))
-    .sort((a, b) => COLOR_ORDER[a.color] - COLOR_ORDER[b.color]);
+    .sort((a, b) => urgencyRank(a.color) - urgencyRank(b.color));
 }

@@ -73,6 +73,10 @@ model Visit {
   aceiArb                String? // yes | no (null for visits recorded before this field existed)
   aceiArbDrug            String? // enalapril | losartan, when aceiArb = yes
   aceiArbNoReason        String?
+  doctorMedChange        String? // yes | no: did the doctor change the medicines
+  doctorMedChangeDetail  String? // what changed, when yes
+  urgencyColor           String? // red | orange | yellow, chosen by the pharmacist; null = no color
+  nextSeePharmacist      String? // yes | no: must the next appointment see the pharmacist
   pharmacistId           String
   createdAt              DateTime  @default(now())
 
@@ -92,6 +96,7 @@ model LabResult {
   visitId     String?
   test        String // gfr | scr | hba1c | albumin | potassium | sbp | dbp
   value       Float
+  valueText   String? // albumin result: a level (ALBUMIN_LEVELS) or typed text; value is 0 when set
   unit        String
   collectedAt DateTime
   origin      String   @default("user_entered") // measured | imported | user_entered

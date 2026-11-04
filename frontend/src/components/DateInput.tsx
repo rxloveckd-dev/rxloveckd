@@ -30,7 +30,7 @@ function mask(raw: string): string {
  * Date field typed as วว/ดด/ปปปป (พ.ศ. or ค.ศ.), digits only, or picked from the calendar button.
  * `value`/`onChange` use ISO yyyy-mm-dd.
  */
-export function DateInput({ id, value, onChange }: { id?: string; value: string; onChange: (iso: string) => void }) {
+export function DateInput({ id, value, min, onChange }: { id?: string; value: string; min?: string; onChange: (iso: string) => void }) {
   const [text, setText] = useState(() => isoToText(value));
 
   // Follow outside changes (calendar pick, form reset) without fighting the user's typing.
@@ -62,6 +62,7 @@ export function DateInput({ id, value, onChange }: { id?: string; value: string;
           tabIndex={-1}
           aria-label="เลือกจากปฏิทิน"
           value={value}
+          min={min}
           onChange={(e) => {
             setText(isoToText(e.target.value));
             onChange(e.target.value);

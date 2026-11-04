@@ -35,8 +35,12 @@ export const LABELS = {
     sbp: 'mmHg',
     dbp: 'mmHg',
   },
+  /** Normal ranges shown beside the lab name. */
+  labRange: { hba1c: '< 7% ปรับเฉพาะรายได้ถึง < 8%', potassium: '3.5–5.0' },
   medicationTaking: { correct: 'ถูกต้อง', incorrect: 'ไม่ถูกต้อง' },
   aceiArb: { yes: 'มี', no: 'ไม่มี' },
+  doctorMedChange: { yes: 'มี', no: 'ไม่มี' },
+  nextSeePharmacist: { yes: 'ต้องพบเภสัชกร', no: 'ไม่ต้องพบเภสัชกร' },
   aceiArbDrug: { enalapril: 'Enalapril', losartan: 'Losartan' },
   seasoning: { reduce_needed: 'ควรปรับลด', adjusted: 'ปรับลดแล้ว' },
   drugClass: {
@@ -59,7 +63,7 @@ export const LABELS = {
   },
   severity: { low: 'ต่ำ', medium: 'ปานกลาง', high: 'สูง' },
   prescriberDecision: { pending: 'รอผล', accepted: 'ยอมรับ', modified: 'ยอมรับแบบปรับ', declined: 'ไม่ยอมรับ' },
-  urgency: { green: 'เขียว', yellow: 'เหลือง', orange: 'ส้ม', red: 'แดง' },
+  urgency: { yellow: 'เหลือง', orange: 'ส้ม', red: 'แดง' },
   /** 5 stages of CKD as explained to patients (clinic infographic). */
   ckdStage: {
     '1': { range: 'eGFR ≥90', meaning: 'ไตเริ่มมีความผิดปกติ (โปรตีนรั่ว)' },

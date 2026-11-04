@@ -12,6 +12,7 @@ const visitBody = (overrides: Record<string, unknown> = {}) => ({
   seasoning: 'reduce_needed',
   furtherAdjustments: 'ทบทวนวิธีกินยา',
   nextAppointment: '2026-11-05',
+  nextSeePharmacist: 'yes',
   aceiArb: 'yes',
   aceiArbDrug: 'enalapril',
   labs: [{ test: 'gfr', value: 42, unit: 'mL/min/1.73m²', collectedAt: '2026-09-28' }],
@@ -71,8 +72,37 @@ describe('visits (US2)', () => {
     expect(labs.body.items.map((l: { test: string }) => l.test).sort()).toEqual(['dbp', 'hba1c', 'sbp']);
   });
 
+  it('saves the clinic follow-up answers and shows the pharmacist color on the patient', async () => {
+    const pharm = await login('pharm');
+    const { body } = await pharm.post('/api/patients').send(patientBody()).expect(201);
+    const id = body.patient.id;
+    const saved = await pharm
+      .post(`/api/patients/${id}/visits`)
+      .send(
+        visitBody({
+          doctorMedChange: 'yes',
+          doctorMedChangeDetail: 'เพิ่ม Losartan',
+          urgencyColor: 'orange',
+          labs: [{ test: 'albumin', value: 0, valueText: '30–300', unit: 'mg/g', collectedAt: '2026-09-28' }],
+        }),
+      )
+      .expect(201);
+    expect(saved.body.visit).toMatchObject({ doctorMedChangeDetail: 'เพิ่ม Losartan', urgencyColor: 'orange', nextSeePharmacist: 'yes' });
+    const patient = (await pharm.get(`/api/patients/${id}`).expect(200)).body.patient;
+    expect(patient).toMatchObject({ color: 'orange', nextSeePharmacist: 'yes' });
+    const labs = (await pharm.get(`/api/patients/${id}/labs`).expect(200)).body.items;
+    expect(labs[0]).toMatchObject({ test: 'albumin', valueText: '30–300' });
+    await pharm.post(`/api/patients/${id}/labs`).send({ test: 'albumin', value: 0, valueText: '450', unit: 'mg/g', collectedAt: '2026-10-28' }).expect(201);
+    const typed = (await pharm.get(`/api/patients/${id}/labs`).expect(200)).body.items[0];
+    expect(typed).toMatchObject({ valueText: '450', previousText: '30–300' });
+  });
+
   it('rejects a next appointment before the visit date', async () => {
     const { pharm, id } = await newPatient();
+    const missingChoice = await pharm.post(`/api/patients/${id}/visits`).send(visitBody({ nextSeePharmacist: null }));
+    expect(missingChoice.status).toBe(400);
+    const noDetail = await pharm.post(`/api/patients/${id}/visits`).send(visitBody({ doctorMedChange: 'yes' }));
+    expect(noDetail.status).toBe(400);
     const res = await pharm.post(`/api/patients/${id}/visits`).send(visitBody({ nextAppointment: '2026-09-01' }));
     expect(res.status).toBe(400);
     expect(res.body.error.message).toBe('วันนัดครั้งต่อไปต้องไม่ก่อนวันที่มา');

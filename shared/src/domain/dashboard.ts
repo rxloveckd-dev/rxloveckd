@@ -1,3 +1,22 @@
+import { urgencyRank, type UrgencyColor } from './urgency';
+
+/** "2026-11" → "11/2569", the month as staff read it. */
+export function buddhistMonth(ym: string): string {
+  const [year = '', month = ''] = ym.split('-');
+  return `${month}/${Number(year) + 543}`;
+}
+
+/** Patients whose appointment is today and who must see the pharmacist, most urgent first. */
+export function seePharmacistToday<T extends { nextAppointment: string | null; nextSeePharmacist: 'yes' | 'no' | null; color: UrgencyColor | null }>(
+  patients: T[],
+  today: Date,
+): T[] {
+  const day = today.toISOString().slice(0, 10);
+  return patients
+    .filter((p) => p.nextSeePharmacist === 'yes' && p.nextAppointment?.slice(0, 10) === day)
+    .sort((a, b) => urgencyRank(a.color) - urgencyRank(b.color));
+}
+
 /** The last `n` months as YYYY-MM, oldest first, ending with the month of `today`. */
 export function lastMonths(n: number, today: Date): string[] {
   const out: string[] = [];

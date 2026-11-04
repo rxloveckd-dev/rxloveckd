@@ -12,6 +12,9 @@ export interface ClinicalRules {
   gfrFallYellowPct: number;
   gfrFallRedPct: number;
   potassiumRed: number;
+  /** Normal potassium range; results outside it are shown in red. */
+  potassiumLow: number;
+  potassiumHigh: number;
   sbpLow: number;
   gfrStaleDays: number;
   reminderDays: number;
@@ -31,7 +34,12 @@ export const DEFAULT_RULES: ClinicalRules = {
   gfrFallYellowPct: 10,
   gfrFallRedPct: 25,
   potassiumRed: 5.5,
+  potassiumLow: 3.5,
+  potassiumHigh: 5.0,
   sbpLow: 90,
   gfrStaleDays: 180,
   reminderDays: 7,
 };
+
+export const potassiumOutOfRange = (value: number, rules: ClinicalRules = DEFAULT_RULES) =>
+  value < rules.potassiumLow || value > rules.potassiumHigh;

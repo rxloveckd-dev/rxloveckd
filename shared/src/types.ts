@@ -19,9 +19,11 @@ export interface PatientDerived {
   gfrChangePct: number | null;
   gfrFlags: DataFlag[];
   stage: CkdStage | null;
-  color: UrgencyColor;
+  /** Chosen by the pharmacist on the latest visit; null when there is nothing to chase up. */
+  color: UrgencyColor | null;
   reasons: string[];
   nextAppointment: string | null;
+  nextSeePharmacist: 'yes' | 'no' | null;
   appointment: AppointmentStatus;
 }
 
