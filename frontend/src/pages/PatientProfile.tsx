@@ -9,7 +9,6 @@ import {
   LABELS,
   labUpdateSchema,
   medicationCreateSchema,
-  parseLeftovers,
   potassiumOutOfRange,
   SEVERITY,
   visitUpdateSchema,
@@ -23,32 +22,9 @@ import { DateInput } from '../components/DateInput';
 import { enterToNext } from '../components/enterToNext';
 import { num, pct, thDate, todayIso } from '../format';
 import { Icon } from '../components/Icon';
-import { LeftoverEditor, leftoverPayload, leftoverRowsFrom, leftoverText } from '../components/LeftoverEditor';
+import { LeftoverEditor, leftoverPayload, leftoverRowsFrom } from '../components/LeftoverEditor';
+import { useVisitPrint, VisitDetails, VisitPrintSheet, type VisitRow } from '../components/VisitDetails';
 
-interface VisitRow {
-  id: string;
-  visitNo: number;
-  visitDate: string;
-  medicationTaking: 'correct' | 'incorrect';
-  medicationTakingDetail?: string | null;
-  leftoverMeds?: string | null;
-  dietDetail?: string | null;
-  seasoningDetail?: string | null;
-  herbalOrPainkiller: boolean;
-  herbalDetail: string | null;
-  dietControlled: boolean;
-  seasoning: 'reduce_needed' | 'adjusted';
-  furtherAdjustments: string | null;
-  nextAppointment: string | null;
-  aceiArb: 'yes' | 'no' | null;
-  aceiArbNoReason: string | null;
-  aceiArbDrug?: 'enalapril' | 'losartan' | null;
-  doctorMedChange?: 'yes' | 'no' | null;
-  doctorMedChangeDetail?: string | null;
-  urgencyColor?: UrgencyColor | null;
-  nextSeePharmacist?: 'yes' | 'no' | null;
-  pharmacistName: string;
-}
 interface LabRow {
   id: string;
   test: keyof typeof LABELS.labTest;
@@ -233,20 +209,11 @@ function FormButtons({ busy, error, onCancel, label = 'บันทึกกา�
   );
 }
 
-/** รายการยาที่เหลือ as short lines; text saved before the list existed is shown as is. */
-function LeftoverList({ stored }: { stored: string | null | undefined }) {
-  const { items, legacy } = parseLeftovers(stored);
-  if (legacy) return <>{legacy}</>;
-  if (!items.length) return <>–</>;
-  return (
-    <ul style={{ margin: 0, paddingLeft: 18 }}>
-      {items.map((i, n) => <li key={n}>{leftoverText(i)}</li>)}
-    </ul>
-  );
-}
-
-function Visits({ id }: { id: string }) {
+function Visits({ patient }: { patient: PatientProfileData }) {
+  const id = patient.id;
   const { data, isLoading, error } = usePatientList<VisitRow>(id, 'visits');
+  const me = useMe();
+  const printing = useVisitPrint();
   const [editing, setEditing] = useState<string | null>(null);
   const [delError, setDelError] = useState('');
   const remove = usePatientMutation<{ visitId: string }, unknown>(id, (b) => `/visits/${b.visitId}`, 'DELETE');
@@ -256,6 +223,8 @@ function Visits({ id }: { id: string }) {
   return (
     <>
       {delError && <div className="alert" role="alert" style={{ marginBottom: 12 }}>{delError}</div>}
+      {printing.error && <div className="alert" role="alert" style={{ marginBottom: 12 }}>{printing.error}</div>}
+      {printing.visit && <VisitPrintSheet patient={patient} visit={printing.visit} printedBy={me.data?.user.displayName} />}
       <div className="grid-2">
         {data.items.map((v) => (
           <Section
@@ -264,6 +233,9 @@ function Visits({ id }: { id: string }) {
             action={
               <span className="row" style={{ gap: 8 }}>
                 <span className="muted">{thDate(v.visitDate)}</span>
+                {editing !== v.id && (
+                  <button type="button" className="btn secondary small" disabled={printing.busy} onClick={() => printing.print(v)}><Icon name="printer" />พิมพ์</button>
+                )}
                 {editing !== v.id && (
                   <RowActions
                     busy={remove.isPending}
@@ -281,48 +253,7 @@ function Visits({ id }: { id: string }) {
             {editing === v.id ? (
               <VisitEditForm patientId={id} visit={v} onDone={() => setEditing(null)} />
             ) : (
-              <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 14px' }}>
-                <dt className="muted">ยากลุ่ม ACEI/ARB</dt>
-                <dd style={{ margin: 0 }}>
-                  {v.aceiArb ? LABELS.aceiArb[v.aceiArb] : '–'}
-                  {v.aceiArb === 'yes' && v.aceiArbDrug ? ` (${LABELS.aceiArbDrug[v.aceiArbDrug]})` : ''}
-                  {v.aceiArb === 'no' && v.aceiArbNoReason ? ` เพราะ${v.aceiArbNoReason}` : ''}
-                </dd>
-                <dt className="muted">แพทย์ปรับเปลี่ยนยา</dt>
-                <dd style={{ margin: 0 }}>
-                  {v.doctorMedChange ? LABELS.doctorMedChange[v.doctorMedChange] : '–'}
-                  {v.doctorMedChange === 'yes' && v.doctorMedChangeDetail ? `: ${v.doctorMedChangeDetail}` : ''}
-                </dd>
-                <dt className="muted">การกินยา</dt>
-                <dd style={{ margin: 0 }} className={v.medicationTaking === 'incorrect' ? 'down' : ''}>
-                  {LABELS.medicationTaking[v.medicationTaking]}
-                  {v.medicationTaking === 'incorrect' && v.medicationTakingDetail ? `: ${v.medicationTakingDetail}` : ''}
-                </dd>
-                <dt className="muted">รายการยาที่เหลือ</dt>
-                <dd style={{ margin: 0 }}><LeftoverList stored={v.leftoverMeds} /></dd>
-                <dt className="muted">ยาสมุนไพร/ยาแก้ปวด</dt>
-                <dd style={{ margin: 0 }} className={v.herbalOrPainkiller ? 'down' : ''}>
-                  {v.herbalOrPainkiller ? `กิน${v.herbalDetail ? `: ${v.herbalDetail}` : ''}` : 'ไม่กิน'}
-                </dd>
-                <dt className="muted">อาหาร</dt>
-                <dd style={{ margin: 0 }} className={v.dietControlled ? '' : 'down'}>{v.dietControlled ? 'คุม' : `ไม่คุม${v.dietDetail ? `: ${v.dietDetail}` : ''}`}</dd>
-                <dt className="muted">เครื่องปรุง</dt>
-                <dd style={{ margin: 0 }} className={v.seasoning === 'reduce_needed' ? 'down' : ''}>
-                  {LABELS.seasoning[v.seasoning]}
-                  {v.seasoning === 'reduce_needed' && v.seasoningDetail ? `: ${v.seasoningDetail}` : ''}
-                </dd>
-                <dt className="muted">Note เภสัชกร</dt>
-                <dd style={{ margin: 0 }}>{v.furtherAdjustments || '–'}</dd>
-                <dt className="muted">นัดครั้งต่อไป</dt>
-                <dd style={{ margin: 0 }}>
-                  {thDate(v.nextAppointment)}
-                  {v.nextSeePharmacist ? ` (${LABELS.nextSeePharmacist[v.nextSeePharmacist]})` : ''}
-                </dd>
-                <dt className="muted">สีความเร่งด่วน</dt>
-                <dd style={{ margin: 0 }}><Urgency color={v.urgencyColor ?? null} /></dd>
-                <dt className="muted">เภสัชกร</dt>
-                <dd style={{ margin: 0 }}>{v.pharmacistName}</dd>
-              </dl>
+              <VisitDetails visit={v} />
             )}
           </Section>
         ))}
@@ -878,7 +809,7 @@ export function PatientProfile() {
         ))}
       </div>
       <div role="tabpanel" style={{ marginTop: 12 }}>
-        {tab === 'visits' && <Visits id={p.id} />}
+        {tab === 'visits' && <Visits patient={p} />}
         {tab === 'labs' && <Labs id={p.id} />}
         {tab === 'medications' && <Medications id={p.id} />}
         {tab === 'drps' && <Drps id={p.id} />}

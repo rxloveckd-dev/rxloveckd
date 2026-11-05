@@ -17,6 +17,12 @@ const PATHS = {
     </>
   ),
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  printer: (
+    <>
+      <path d="M7 8V4h10v4M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M7 14h10v6H7z" />
+    </>
+  ),
   x: <path d="M6 6l12 12M18 6L6 18" />,
   save: (
     <>

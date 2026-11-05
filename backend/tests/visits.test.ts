@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { prisma } from '../src/db';
 import { login, patientBody, resetDb } from './helpers';
 
 beforeEach(resetDb);
@@ -126,5 +127,27 @@ describe('DRPs (US2)', () => {
     expect(decided.body.drp.recommendation).toBe('หยุด NSAID');
     expect(decided.body.drp.prescriberDecision).toBe('declined');
     expect(decided.body.drp.decidedByName).toBe('ภก.ทดสอบ');
+  });
+});
+
+describe('printing a visit', () => {
+  it('records the print in the audit log', async () => {
+    const { pharm, id } = await newPatient();
+    const { body } = await pharm.post(`/api/patients/${id}/visits`).send(visitBody()).expect(201);
+
+    await pharm.post(`/api/visits/${body.visit.id}/print`).send({}).expect(200);
+
+    const log = await prisma.auditLog.findFirst({ where: { action: 'export', entity: 'visit' } });
+    expect(log?.entityId).toBe(body.visit.id);
+  });
+
+  it('refuses an unknown visit and anyone who may not see patient data', async () => {
+    const { pharm, id } = await newPatient();
+    const { body } = await pharm.post(`/api/patients/${id}/visits`).send(visitBody()).expect(201);
+    await pharm.post('/api/visits/missing/print').send({}).expect(404);
+
+    const admin = await login('admin');
+    await admin.post(`/api/visits/${body.visit.id}/print`).send({}).expect(403);
+    expect(await prisma.auditLog.count({ where: { action: 'export', entity: 'visit' } })).toBe(0);
   });
 });

@@ -399,9 +399,10 @@ function loadAll() {
 const LOGGABLE = {
   'view:patient': /^[A-Za-z0-9_-]{1,64}$/,
   'export:report_monthly': /^\d{4}-(0[1-9]|1[0-2])$/,
+  'export:visit': /^[A-Za-z0-9_-]{1,64}$/,
 };
 
-/** Data is read in the browser after loadAll, so the page reports each patient opened and each export. */
+/** Data is read in the browser after loadAll, so the page reports each patient opened, each export and each visit printed. */
 function logEvent(action, entity, entityId) {
   const user = requireUser(true);
   const format = LOGGABLE[action + ':' + entity];

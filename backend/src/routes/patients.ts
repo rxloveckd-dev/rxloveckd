@@ -199,6 +199,13 @@ export function patientsRouter(): Router {
     res.json({ visit });
   });
 
+  /** The page calls this before opening the print dialog: a printed visit is logged like an export. */
+  r.post('/visits/:id/print', async (req, res) => {
+    if (!(await prisma.visit.findUnique({ where: { id: req.params.id } }))) throw notFound('การติดตาม');
+    await audit(req, 'export', 'visit', req.params.id);
+    res.json({ ok: true });
+  });
+
   /** Labs entered on the visit go with it; medicines and DRPs stay on the patient's record. */
   r.delete('/visits/:id', async (req, res) => {
     const visit = await prisma.visit.findUnique({ where: { id: req.params.id } });

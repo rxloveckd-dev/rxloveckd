@@ -581,3 +581,19 @@ td.num, th.num { text-align: right; }
 @media (max-width: 640px) {
   .date-pop, .date-pop.from-left { position: fixed; top: 50%; left: 50%; right: auto; margin: 0; transform: translate(-50%, -50%); }
 }
+
+/* ---------- printed visit: only the sheet reaches paper */
+.print-sheet { display: none; }
+@media print {
+  @page { size: A4; margin: 15mm; }
+  :root, body { background: #fff; }
+  body.printing > :not(.print-sheet) { display: none; }
+  .print-sheet { display: block; color: #000; font-size: 11pt; }
+  .print-sheet header { border-bottom: 1px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+  .print-sheet header p { margin: 2px 0 0; }
+  .print-sheet h1 { font-size: 16pt; margin-top: 4px; }
+  .print-sheet h2 { font-size: 13pt; margin-bottom: 8px; }
+  .print-sheet .muted { color: #333; }
+  .print-sheet .badge { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .print-sheet footer { margin-top: 16px; font-size: 9pt; color: #333; }
+}

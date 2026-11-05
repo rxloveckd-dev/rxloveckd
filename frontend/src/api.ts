@@ -79,6 +79,16 @@ export async function downloadMonthlyReport(month: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Logs a visit being printed; see useVisitPrint. */
+export async function logVisitPrint(visitId: string) {
+  if (!BROWSER_API) {
+    await api(`/visits/${visitId}/print`, { method: 'POST', json: {} });
+    return;
+  }
+  const demo = await import('./demo/mockApi');
+  await demo.logVisitPrint(visitId);
+}
+
 export const useMe = () =>
   useQuery({
     queryKey: ['me'],

@@ -231,6 +231,11 @@ export async function logReportExport(month: string) {
   if (GAS) await gasCall('logEvent', 'export', 'report_monthly', month);
 }
 
+/** Clinic system: a printed visit is patient data leaving the system, so it is logged like an export. */
+export async function logVisitPrint(visitId: string) {
+  if (GAS) await gasCall('logEvent', 'export', 'visit', visitId);
+}
+
 async function sheetsPost(payload: { ops?: Op[]; reset?: boolean }) {
   if (GAS) {
     await gasCall('writeOps', payload.ops ?? []);
