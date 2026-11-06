@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { buddhistMonth, LABELS, type DischargeCode, type MonthlySummary, type PatientSummary, type SessionUser } from '@rx/shared';
+import { buddhistMonth, LABELS, type AppointmentRow, type DischargeCode, type MonthlySummary, type PatientSummary, type SessionUser } from '@rx/shared';
 
 /** GitHub Pages build: no server, the API is answered in the browser with synthetic data. */
 export const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
@@ -114,6 +114,9 @@ export interface Paged<T> {
   pageSize: number;
 }
 
+export const useAppointments = (month: string) =>
+  useQuery({ queryKey: ['appointments', month], queryFn: () => api<{ items: AppointmentRow[] }>(`/appointments?month=${month}`) });
+
 export const usePatients = (params: Record<string, string>) => {
   const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
   return useQuery({ queryKey: ['patients', qs], queryFn: () => api<Paged<PatientSummary>>(`/patients?${qs}`) });
@@ -141,6 +144,7 @@ export function usePatientMutation<TBody, TResult>(
       if (patientId) qc.invalidateQueries({ queryKey: ['patient', patientId] });
       qc.invalidateQueries({ queryKey: ['patients'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['appointments'] });
     },
   });
 }

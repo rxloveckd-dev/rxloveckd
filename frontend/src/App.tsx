@@ -6,6 +6,7 @@ import { api, ApiError, GAS_MODE, STATIC_DEMO, useMe } from './api';
 import { Loading } from './components/ui';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { Appointments } from './pages/Appointments';
 import { Patients } from './pages/Patients';
 import { PatientEdit, PatientNew } from './pages/PatientNew';
 import { PatientProfile } from './pages/PatientProfile';
@@ -125,6 +126,7 @@ export function App() {
         {clinical && (
           <>
             <NavLink to="/" end><span className="nav-ic sun"><Icon name="sun" size="18px" /></span>งานวันนี้</NavLink>
+            <NavLink to="/appointments"><span className="nav-ic calendar"><Icon name="calendar" size="18px" /></span>นัดหมาย</NavLink>
             <NavLink
               to="/patients"
               // the register page has its own menu item, so don't light up both
@@ -160,6 +162,7 @@ export function App() {
           {clinical ? (
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/appointments" element={<Appointments />} />
               <Route path="/patients" element={<Patients />} />
               <Route path="/patients/new" element={<PatientNew />} />
               <Route path="/patients/:id" element={<PatientProfile />} />

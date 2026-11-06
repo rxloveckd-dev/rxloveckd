@@ -416,6 +416,7 @@ td.num, th.num { text-align: right; }
 .side a:hover .nav-ic { transform: translateY(-1px) rotate(-4deg); }
 .nav-ic.sun { background: #ffe08a; }
 .nav-ic.users { background: #a9d8ff; }
+.nav-ic.calendar { background: #ffd0a8; }
 .nav-ic.add { background: #b4ecc8; }
 .nav-ic.chart { background: #d9c7ff; }
 .nav-ic.shield { background: #ffc4c4; }
@@ -583,6 +584,24 @@ td.num, th.num { text-align: right; }
 }
 
 .visit-rows { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+
+/* ---------- appointments calendar */
+.appt-month { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.appt-month h3 { margin: 0; }
+@media (max-width: 560px) { .appt-month h3 { order: -1; flex-basis: 100%; text-align: center; } }
+.appt-calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 12px; }
+.appt-weekday { text-align: center; font-size: 0.85rem; color: var(--ink-soft); }
+.appt-day { min-height: 58px; padding: 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--radius-sm); font: inherit; cursor: pointer; }
+.appt-day:hover { border-color: var(--ink); }
+.appt-day.today { border: 2px solid var(--ink); }
+.appt-day[aria-pressed='true'] { background: var(--yellow-bg); }
+.appt-day span { font-size: 0.85rem; color: var(--ink-soft); }
+.appt-day b { font-size: 1.15rem; line-height: 1.1; }
+.appt-row { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+.appt-pharmacist { font-weight: 600; }
+.appt-attendance { font-weight: 600; white-space: nowrap; }
+.appt-attendance.came { color: var(--green); }
+.appt-attendance.missed { color: var(--red); }
 
 /* ---------- printed visit: only the sheet reaches paper */
 .print-sheet { display: none; }

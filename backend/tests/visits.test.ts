@@ -151,3 +151,40 @@ describe('printing a visit', () => {
     expect(await prisma.auditLog.count({ where: { action: 'export', entity: 'visit' } })).toBe(0);
   });
 });
+
+describe('appointments calendar', () => {
+  const postVisit = (pharm: Awaited<ReturnType<typeof login>>, id: string, overrides: Record<string, unknown>) =>
+    pharm.post(`/api/patients/${id}/visits`).send(visitBody({ labs: [], medications: [], ...overrides })).expect(201);
+
+  it('keeps a patient on the day they came and lists their next appointment too', async () => {
+    const { pharm, id } = await newPatient();
+    await postVisit(pharm, id, { visitDate: '2026-08-01', nextAppointment: '2026-09-07', nextSeePharmacist: 'yes' });
+    await postVisit(pharm, id, { visitDate: '2026-09-07', nextAppointment: '2026-09-28', nextSeePharmacist: 'no' });
+
+    const { body } = await pharm.get('/api/appointments?month=2026-09').expect(200);
+
+    expect(body.items.map((a: { date: string; attendance: string; seePharmacist: string }) => [a.date, a.attendance, a.seePharmacist])).toEqual([
+      ['2026-09-07', 'came', 'yes'],
+      ['2026-09-28', 'missed', 'no'],
+    ]);
+    expect(body.items[0]).toMatchObject({ id, hn: '000000123', firstName: patientBody().firstName });
+    expect(body.items[0].nationalId).toBeUndefined();
+  });
+
+  it('leaves out discharged patients', async () => {
+    const { pharm, id } = await newPatient();
+    await postVisit(pharm, id, { visitDate: '2026-08-01', nextAppointment: '2026-09-07' });
+    await prisma.patient.update({ where: { id }, data: { programStatus: 'discharged' } });
+
+    const { body } = await pharm.get('/api/appointments?month=2026-09').expect(200);
+
+    expect(body.items).toEqual([]);
+  });
+
+  it('rejects a malformed month and non-clinical staff', async () => {
+    const pharm = await login('pharm');
+    expect((await pharm.get('/api/appointments?month=2026-13')).status).toBe(400);
+    const admin = await login('admin');
+    expect((await admin.get('/api/appointments?month=2026-09')).status).toBe(403);
+  });
+});

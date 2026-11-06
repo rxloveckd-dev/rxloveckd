@@ -25,7 +25,9 @@ import {
   monthRange,
   patientCreateSchema,
   patientUpdateSchema,
+  monthAppointments,
   summarizeMonth,
+  thaiToday,
   visitCreateSchema,
   visitUpdateSchema,
   type PatientSummary,
@@ -698,6 +700,15 @@ const routes: [string, RegExp, Handler][] = [
     Object.assign(drp, { prescriberDecision: d.prescriberDecision, prescriberReason: d.prescriberReason ?? null, decidedById: u.id });
     update('drps', drp);
     return { drp: drpView(drp) };
+  }],
+  ['GET', /^\/appointments$/, (_m, _b, q) => {
+    clinical();
+    const items = monthAppointments(
+      summaries().map((patient) => ({ patient, visits: store.visits.filter((v) => v.patientId === patient.id) })),
+      q.get('month') ?? '',
+      thaiToday(new Date()),
+    );
+    return { items };
   }],
   ['GET', /^\/dashboard$/, () => {
     clinical();

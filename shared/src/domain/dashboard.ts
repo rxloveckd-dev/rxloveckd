@@ -1,3 +1,4 @@
+import { thaiToday } from './appointments';
 import { urgencyRank, type UrgencyColor } from './urgency';
 
 /** "2026-11" → "11/2569", the month as staff read it. */
@@ -11,7 +12,7 @@ export function seePharmacistToday<T extends { nextAppointment: string | null; n
   patients: T[],
   today: Date,
 ): T[] {
-  const day = today.toISOString().slice(0, 10);
+  const day = thaiToday(today);
   return patients
     .filter((p) => p.nextSeePharmacist === 'yes' && p.nextAppointment?.slice(0, 10) === day)
     .sort((a, b) => urgencyRank(a.color) - urgencyRank(b.color));

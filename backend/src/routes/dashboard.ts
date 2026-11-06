@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
-import { aceiArbCoverage, buddhistMonth, lastMonths, LABELS, seePharmacistToday, type CkdStage, type UrgencyColor } from '@rx/shared';
+import { aceiArbCoverage, buddhistMonth, lastMonths, LABELS, monthAppointments, seePharmacistToday, thaiToday, type CkdStage, type UrgencyColor } from '@rx/shared';
 import { prisma } from '../db';
 import { audit } from '../audit';
 import { CLINICAL, requireRole } from '../auth';
@@ -48,6 +48,22 @@ export function dashboardRouter(): Router {
       month: await monthlySummary(currentMonth()),
       rules: { version: rules.version, approved: rules.approved },
     });
+  });
+
+  r.get('/appointments', async (req, res) => {
+    const { month } = monthQuery.parse(req.query);
+    const now = new Date();
+    const patients = await listSummaries(await activeRules(), now);
+    const visits = await prisma.visit.findMany({
+      where: { patientId: { in: patients.map((p) => p.id) } },
+      select: { patientId: true, visitNo: true, visitDate: true, nextAppointment: true, nextSeePharmacist: true },
+    });
+    const items = monthAppointments(
+      patients.map((patient) => ({ patient, visits: visits.filter((v) => v.patientId === patient.id) })),
+      month,
+      thaiToday(now),
+    );
+    res.json({ items });
   });
 
   r.get('/reports/trend', async (req, res) => {

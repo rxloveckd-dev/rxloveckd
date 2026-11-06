@@ -41,6 +41,7 @@ export const LABELS = {
   aceiArb: { yes: 'มี', no: 'ไม่มี' },
   doctorMedChange: { yes: 'มี', no: 'ไม่มี' },
   nextSeePharmacist: { yes: 'ต้องพบเภสัชกร', no: 'ไม่ต้องพบเภสัชกร' },
+  attendance: { waiting: 'ยังไม่มา', came: 'มาแล้ว', missed: 'เลยนัด' },
   aceiArbDrug: { enalapril: 'Enalapril', losartan: 'Losartan' },
   seasoning: { reduce_needed: 'ควรปรับลด', adjusted: 'ปรับลดแล้ว' },
   drugClass: {
