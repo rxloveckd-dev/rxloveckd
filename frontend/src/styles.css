@@ -582,10 +582,13 @@ td.num, th.num { text-align: right; }
   .date-pop, .date-pop.from-left { position: fixed; top: 50%; left: 50%; right: auto; margin: 0; transform: translate(-50%, -50%); }
 }
 
+.visit-rows { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+
 /* ---------- printed visit: only the sheet reaches paper */
 .print-sheet { display: none; }
 @media print {
   @page { size: A4; margin: 15mm; }
+  @page sticker { size: 75mm 55mm; margin: 2mm 2.5mm; }
   :root, body { background: #fff; }
   body.printing > :not(.print-sheet) { display: none; }
   .print-sheet { display: block; color: #000; font-size: 11pt; }
@@ -596,4 +599,18 @@ td.num, th.num { text-align: right; }
   .print-sheet .muted { color: #333; }
   .print-sheet .badge { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .print-sheet footer { margin-top: 16px; font-size: 9pt; color: #333; }
+
+  /* A label printer has no grey or colour, so everything is solid black and emphasis is weight. */
+  .print-sheet.sticker { page: sticker; font-size: 7pt; line-height: 1.32; font-weight: 500; }
+  .sticker table { width: 100%; }
+  .sticker th, .sticker td { padding: 0; border: 0; color: #000; font: inherit; }
+  .sticker b, .sticker .down { color: #000; font-weight: 700; }
+  .sticker-patient { display: flex; justify-content: space-between; gap: 2mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.6mm; margin-bottom: 0.8mm; }
+  .sticker .visit-rows { gap: 0 1.8mm; }
+  .sticker .muted { color: #000; }
+  .sticker dt { white-space: nowrap; }
+  .sticker dt, .sticker dd { break-inside: avoid; }
+  .sticker dd ul { padding-left: 3mm !important; }
+  .sticker .badge { padding: 0; background: none; color: #000; font-size: inherit; font-weight: 700; }
+  .sticker .badge::before { display: none; }
 }

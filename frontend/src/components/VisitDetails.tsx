@@ -43,17 +43,37 @@ function LeftoverList({ stored }: { stored: string | null | undefined }) {
   );
 }
 
-/** One visit as label and value rows; the card and the printed sheet both use this. */
-export function VisitDetails({ visit: v }: { visit: VisitRow }) {
+const ROW_LABELS = {
+  aceiArb: 'ยากลุ่ม ACEI/ARB',
+  doctorMedChange: 'แพทย์ปรับเปลี่ยนยา',
+  leftovers: 'รายการยาที่เหลือ',
+  herbal: 'ยาสมุนไพร/ยาแก้ปวด',
+  note: 'Note เภสัชกร',
+  urgency: 'สีความเร่งด่วน',
+};
+
+/** A sticker is 7.5 cm wide, so its label column has to stay narrow. */
+const STICKER_ROW_LABELS: typeof ROW_LABELS = {
+  aceiArb: 'ACEI/ARB',
+  doctorMedChange: 'แพทย์ปรับยา',
+  leftovers: 'ยาที่เหลือ',
+  herbal: 'สมุนไพร/ยาแก้ปวด',
+  note: 'Note',
+  urgency: 'ความเร่งด่วน',
+};
+
+/** One visit as label and value rows; the card and both printed forms use this, so they cannot drift apart. */
+export function VisitDetails({ visit: v, shortLabels = false }: { visit: VisitRow; shortLabels?: boolean }) {
+  const label = shortLabels ? STICKER_ROW_LABELS : ROW_LABELS;
   return (
-    <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 14px' }}>
-      <dt className="muted">ยากลุ่ม ACEI/ARB</dt>
+    <dl className="visit-rows">
+      <dt className="muted">{label.aceiArb}</dt>
       <dd style={{ margin: 0 }}>
         {v.aceiArb ? LABELS.aceiArb[v.aceiArb] : '–'}
         {v.aceiArb === 'yes' && v.aceiArbDrug ? ` (${LABELS.aceiArbDrug[v.aceiArbDrug]})` : ''}
         {v.aceiArb === 'no' && v.aceiArbNoReason ? ` เพราะ${v.aceiArbNoReason}` : ''}
       </dd>
-      <dt className="muted">แพทย์ปรับเปลี่ยนยา</dt>
+      <dt className="muted">{label.doctorMedChange}</dt>
       <dd style={{ margin: 0 }}>
         {v.doctorMedChange ? LABELS.doctorMedChange[v.doctorMedChange] : '–'}
         {v.doctorMedChange === 'yes' && v.doctorMedChangeDetail ? `: ${v.doctorMedChangeDetail}` : ''}
@@ -63,9 +83,9 @@ export function VisitDetails({ visit: v }: { visit: VisitRow }) {
         {LABELS.medicationTaking[v.medicationTaking]}
         {v.medicationTaking === 'incorrect' && v.medicationTakingDetail ? `: ${v.medicationTakingDetail}` : ''}
       </dd>
-      <dt className="muted">รายการยาที่เหลือ</dt>
+      <dt className="muted">{label.leftovers}</dt>
       <dd style={{ margin: 0 }}><LeftoverList stored={v.leftoverMeds} /></dd>
-      <dt className="muted">ยาสมุนไพร/ยาแก้ปวด</dt>
+      <dt className="muted">{label.herbal}</dt>
       <dd style={{ margin: 0 }} className={v.herbalOrPainkiller ? 'down' : ''}>
         {v.herbalOrPainkiller ? `กิน${v.herbalDetail ? `: ${v.herbalDetail}` : ''}` : 'ไม่กิน'}
       </dd>
@@ -76,14 +96,14 @@ export function VisitDetails({ visit: v }: { visit: VisitRow }) {
         {LABELS.seasoning[v.seasoning]}
         {v.seasoning === 'reduce_needed' && v.seasoningDetail ? `: ${v.seasoningDetail}` : ''}
       </dd>
-      <dt className="muted">Note เภสัชกร</dt>
+      <dt className="muted">{label.note}</dt>
       <dd style={{ margin: 0 }}>{v.furtherAdjustments || '–'}</dd>
       <dt className="muted">นัดครั้งต่อไป</dt>
       <dd style={{ margin: 0 }}>
         {thDate(v.nextAppointment)}
         {v.nextSeePharmacist ? ` (${LABELS.nextSeePharmacist[v.nextSeePharmacist]})` : ''}
       </dd>
-      <dt className="muted">สีความเร่งด่วน</dt>
+      <dt className="muted">{label.urgency}</dt>
       <dd style={{ margin: 0 }}><Urgency color={v.urgencyColor ?? null} /></dd>
       <dt className="muted">เภสัชกร</dt>
       <dd style={{ margin: 0 }}>{v.pharmacistName}</dd>
@@ -93,12 +113,16 @@ export function VisitDetails({ visit: v }: { visit: VisitRow }) {
 
 type PrintedPatient = Pick<PatientProfile, 'title' | 'firstName' | 'lastName' | 'hn' | 'nationalIdMasked' | 'age' | 'sex'>;
 
-/** The paper copy: says whose visit it is, since the page around the card is not printed. */
-export function VisitPrintSheet({ patient: p, visit, printedBy }: { patient: PrintedPatient; visit: VisitRow; printedBy?: string }) {
+function useHidePageForPrint() {
   useLayoutEffect(() => {
     document.body.classList.add('printing');
     return () => document.body.classList.remove('printing');
   }, []);
+}
+
+/** The paper copy: says whose visit it is, since the page around the card is not printed. */
+export function VisitPrintSheet({ patient: p, visit, printedBy }: { patient: PrintedPatient; visit: VisitRow; printedBy?: string }) {
+  useHidePageForPrint();
   return createPortal(
     <article className="print-sheet">
       <header>
@@ -117,9 +141,46 @@ export function VisitPrintSheet({ patient: p, visit, printedBy }: { patient: Pri
   );
 }
 
+/**
+ * A 7.5 x 5.5 cm label for the patient's book, printed in black on a roll. It names the patient by
+ * name and HN only, because the book leaves the clinic. The table header repeats on each label,
+ * so a visit too long for one label still says whose it is on the next.
+ */
+export function VisitPrintSticker({ patient: p, visit }: { patient: PrintedPatient; visit: VisitRow }) {
+  useHidePageForPrint();
+  return createPortal(
+    <article className="print-sheet sticker">
+      <table>
+        <thead>
+          <tr>
+            <th>
+              <div className="sticker-patient">
+                <b>{p.title}{p.firstName} {p.lastName}</b>
+                <span>HN {p.hn}</span>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <b>ติดตามครั้งที่ {visit.visitNo} วันที่ {thDate(visit.visitDate)}</b>
+              <VisitDetails visit={visit} shortLabels />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </article>,
+    document.body,
+  );
+}
+
+export type PrintFormat = 'sheet' | 'sticker';
+
 /** Logs first, so a visit never reaches paper without a record of it; if the log fails, nothing prints. */
 export function useVisitPrint(log: (visitId: string) => Promise<unknown> = logVisitPrint) {
   const [visit, setVisit] = useState<VisitRow | null>(null);
+  const [format, setFormat] = useState<PrintFormat>('sheet');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -129,7 +190,7 @@ export function useVisitPrint(log: (visitId: string) => Promise<unknown> = logVi
     return () => window.removeEventListener('afterprint', done);
   }, []);
 
-  async function print(v: VisitRow) {
+  async function print(v: VisitRow, as: PrintFormat = 'sheet') {
     setError('');
     setBusy(true);
     try {
@@ -140,9 +201,12 @@ export function useVisitPrint(log: (visitId: string) => Promise<unknown> = logVi
     } finally {
       setBusy(false);
     }
-    flushSync(() => setVisit(v));
+    flushSync(() => {
+      setFormat(as);
+      setVisit(v);
+    });
     window.print();
   }
 
-  return { visit, busy, error, print };
+  return { visit, format, busy, error, print };
 }

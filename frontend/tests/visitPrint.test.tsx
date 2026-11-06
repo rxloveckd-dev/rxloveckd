@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useVisitPrint, VisitPrintSheet, type VisitRow } from '../src/components/VisitDetails';
+import { useVisitPrint, VisitPrintSheet, VisitPrintSticker, type VisitRow } from '../src/components/VisitDetails';
 
 const visit: VisitRow = {
   id: 'v1',
@@ -28,8 +28,10 @@ function Harness({ log }: { log: (id: string) => Promise<unknown> }) {
   return (
     <>
       <button disabled={printing.busy} onClick={() => printing.print(visit)}>พิมพ์</button>
+      <button disabled={printing.busy} onClick={() => printing.print(visit, 'sticker')}>สติกเกอร์</button>
       {printing.error && <div role="alert">{printing.error}</div>}
-      {printing.visit && <VisitPrintSheet patient={patient} visit={printing.visit} printedBy="ภญ.ผู้พิมพ์" />}
+      {printing.visit && printing.format === 'sheet' && <VisitPrintSheet patient={patient} visit={printing.visit} printedBy="ภญ.ผู้พิมพ์" />}
+      {printing.visit && printing.format === 'sticker' && <VisitPrintSticker patient={patient} visit={printing.visit} />}
     </>
   );
 }
@@ -60,6 +62,43 @@ describe('printing a visit', () => {
     expect(sheet.textContent).toContain('ติดตามครั้งที่ 1');
     expect(sheet.textContent).toContain('สอนวิธีใช้ที่ตัดเม็ดยา');
     expect(sheet.textContent).toContain('โดย ภญ.ผู้พิมพ์');
+    expect(document.body.classList.contains('printing')).toBe(true);
+  });
+
+  it('keeps the long row labels on the A4 sheet', async () => {
+    render(<Harness log={async () => {}} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'พิมพ์' }));
+
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    const sheet = document.querySelector('.print-sheet')!;
+    expect(sheet.classList.contains('sticker')).toBe(false);
+    expect(sheet.textContent).toContain('ยากลุ่ม ACEI/ARB');
+    expect(sheet.textContent).toContain('แพทย์ปรับเปลี่ยนยา');
+  });
+
+  it('logs first, then prints a sticker with short labels and only the name and HN', async () => {
+    const order: string[] = [];
+    print.mockImplementation(() => order.push('print'));
+    const log = vi.fn(async () => order.push('log'));
+    render(<Harness log={log} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'สติกเกอร์' }));
+
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    expect(order).toEqual(['log', 'print']);
+    const sticker = document.querySelector('.print-sheet.sticker')!;
+    expect(sticker.parentElement).toBe(document.body);
+    expect(sticker.querySelector('thead')!.textContent).toContain('นายทดสอบ ระบบ');
+    expect(sticker.querySelector('thead')!.textContent).toContain('HN 000000123');
+    expect(sticker.textContent).toContain('ติดตามครั้งที่ 1');
+    expect(sticker.textContent).toContain('แพทย์ปรับยา');
+    expect(sticker.textContent).toContain('สอนวิธีใช้ที่ตัดเม็ดยา');
+    expect(sticker.textContent).toContain('แดง');
+    expect(sticker.textContent).not.toContain('ยากลุ่ม');
+    expect(sticker.textContent).not.toContain('แพทย์ปรับเปลี่ยนยา');
+    expect(sticker.textContent).not.toContain('x-xxxx');
+    expect(sticker.textContent).not.toContain('อายุ');
     expect(document.body.classList.contains('printing')).toBe(true);
   });
 

@@ -23,7 +23,7 @@ import { enterToNext } from '../components/enterToNext';
 import { num, pct, thDate, todayIso } from '../format';
 import { Icon } from '../components/Icon';
 import { LeftoverEditor, leftoverPayload, leftoverRowsFrom } from '../components/LeftoverEditor';
-import { useVisitPrint, VisitDetails, VisitPrintSheet, type VisitRow } from '../components/VisitDetails';
+import { useVisitPrint, VisitDetails, VisitPrintSheet, VisitPrintSticker, type VisitRow } from '../components/VisitDetails';
 
 interface LabRow {
   id: string;
@@ -224,7 +224,8 @@ function Visits({ patient }: { patient: PatientProfileData }) {
     <>
       {delError && <div className="alert" role="alert" style={{ marginBottom: 12 }}>{delError}</div>}
       {printing.error && <div className="alert" role="alert" style={{ marginBottom: 12 }}>{printing.error}</div>}
-      {printing.visit && <VisitPrintSheet patient={patient} visit={printing.visit} printedBy={me.data?.user.displayName} />}
+      {printing.visit && printing.format === 'sheet' && <VisitPrintSheet patient={patient} visit={printing.visit} printedBy={me.data?.user.displayName} />}
+      {printing.visit && printing.format === 'sticker' && <VisitPrintSticker patient={patient} visit={printing.visit} />}
       <div className="grid-2">
         {data.items.map((v) => (
           <Section
@@ -234,7 +235,10 @@ function Visits({ patient }: { patient: PatientProfileData }) {
               <span className="row" style={{ gap: 8 }}>
                 <span className="muted">{thDate(v.visitDate)}</span>
                 {editing !== v.id && (
-                  <button type="button" className="btn secondary small" disabled={printing.busy} onClick={() => printing.print(v)}><Icon name="printer" />พิมพ์</button>
+                  <>
+                    <button type="button" className="btn secondary small" disabled={printing.busy} onClick={() => printing.print(v)}><Icon name="printer" />พิมพ์ A4</button>
+                    <button type="button" className="btn secondary small" disabled={printing.busy} onClick={() => printing.print(v, 'sticker')}><Icon name="printer" />พิมพ์สติกเกอร์</button>
+                  </>
                 )}
                 {editing !== v.id && (
                   <RowActions
