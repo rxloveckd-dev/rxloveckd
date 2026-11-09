@@ -2,6 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import {
   dischargeSchema,
+  isValidHn,
+  isValidThaiNationalId,
+  normalizeHn,
+  normalizeNationalId,
   drpCreateSchema,
   drpDecisionSchema,
   drpUpdateSchema,
@@ -79,6 +83,29 @@ export function patientsRouter(): Router {
     await audit(req, 'create', 'patient', created.id);
     const p = await findPatientOr404(created.id);
     res.status(201).json({ patient: profileResponse(p, await activeRules()) });
+  });
+
+  // Registration form asks this as soon as a valid ID or HN is typed, before the rest is filled in.
+  // POST so the national ID stays out of URLs and access logs.
+  r.post('/patients/lookup', async (req, res) => {
+    const nationalId = normalizeNationalId(String(req.body?.nationalId ?? ''));
+    const hn = normalizeHn(String(req.body?.hn ?? ''));
+    const or: Prisma.PatientWhereInput[] = [];
+    if (isValidThaiNationalId(nationalId)) or.push({ nationalId });
+    if (isValidHn(hn)) or.push({ hn });
+    const p = or.length ? await prisma.patient.findFirst({ where: { OR: or } }) : null;
+    if (p) await audit(req, 'lookup', 'patient', p.id);
+    res.json({
+      patient: p && {
+        id: p.id,
+        hn: p.hn,
+        title: p.title,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        programStatus: p.programStatus,
+        matchedBy: p.nationalId === nationalId ? 'nationalId' : 'hn',
+      },
+    });
   });
 
   r.get('/patients/:id', async (req, res) => {

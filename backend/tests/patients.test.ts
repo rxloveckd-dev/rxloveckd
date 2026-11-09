@@ -31,6 +31,20 @@ describe('patients (US1)', () => {
     expect(dupHn.status).toBe(409);
   });
 
+  it('looks up an already registered national ID or HN before the form is saved', async () => {
+    const pharm = await login('pharm');
+    const { body } = await pharm.post('/api/patients').send(patientBody()).expect(201);
+    const byId = await pharm.post('/api/patients/lookup').send({ nationalId: '1-1017-00207-03-0' }).expect(200);
+    expect(byId.body.patient).toMatchObject({ id: body.patient.id, matchedBy: 'nationalId' });
+    expect(JSON.stringify(byId.body)).not.toContain('1101700207030');
+    const byHn = await pharm.post('/api/patients/lookup').send({ hn: body.patient.hn }).expect(200);
+    expect(byHn.body.patient).toMatchObject({ id: body.patient.id, matchedBy: 'hn' });
+    const none = await pharm.post('/api/patients/lookup').send({ nationalId: '3100600445813', hn: '000000999' }).expect(200);
+    expect(none.body.patient).toBeNull();
+    expect((await pharm.post('/api/patients/lookup').send({})).body.patient).toBeNull();
+    expect(await prisma.auditLog.count({ where: { action: 'lookup', entity: 'patient' } })).toBe(2);
+  });
+
   it('returns derived stage, GFR change and urgency with reasons on the profile', async () => {
     const pharm = await login('pharm');
     const { body } = await pharm.post('/api/patients').send(patientBody()).expect(201);

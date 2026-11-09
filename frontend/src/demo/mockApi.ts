@@ -12,6 +12,10 @@ import {
   lastMonths,
   derivePatientStatus,
   dischargeSchema,
+  isValidHn,
+  isValidThaiNationalId,
+  normalizeHn,
+  normalizeNationalId,
   drpCreateSchema,
   drpDecisionSchema,
   drpUpdateSchema,
@@ -460,6 +464,19 @@ const routes: [string, RegExp, Handler][] = [
     const page = Math.max(1, Number(q.get('page') ?? 1));
     const pageSize = 25;
     return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize };
+  }],
+  ['POST', /^\/patients\/lookup$/, (_m, body) => {
+    clinical();
+    const b = (body ?? {}) as { nationalId?: string; hn?: string };
+    const nid = normalizeNationalId(b.nationalId ?? '');
+    const hn = normalizeHn(b.hn ?? '');
+    const byId = isValidThaiNationalId(nid) ? store.patients.find((p) => p.nationalId === nid) : undefined;
+    const p = byId ?? (isValidHn(hn) ? store.patients.find((x) => x.hn === hn) : undefined);
+    return {
+      patient: p
+        ? { id: p.id, hn: p.hn, title: p.title, firstName: p.firstName, lastName: p.lastName, programStatus: p.programStatus, matchedBy: byId ? 'nationalId' : 'hn' }
+        : null,
+    };
   }],
   ['POST', /^\/patients$/, (_m, body) => {
     clinical();

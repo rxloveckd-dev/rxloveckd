@@ -169,7 +169,7 @@ model AuditLog {
   id       String   @id @default(cuid())
   at       DateTime @default(now())
   actorId  String?
-  action   String // view | create | update | amend | export | login | denied
+  action   String // view | create | update | amend | export | login | denied | lookup
   entity   String
   entityId String?
   outcome  String // ok | denied | error

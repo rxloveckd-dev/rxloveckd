@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { HN_LENGTH, isValidHn, isValidThaiNationalId, normalizeHn, patientCreateSchema, patientUpdateSchema } from '@rx/shared';
-import { ApiError, usePatient, usePatientMutation, type PatientProfile } from '../api';
+import { HN_LENGTH, isValidHn, isValidThaiNationalId, normalizeHn, normalizeNationalId, patientCreateSchema, patientUpdateSchema } from '@rx/shared';
+import { ApiError, usePatient, usePatientMutation, useRegisteredLookup, type PatientProfile } from '../api';
 import { Choice, ErrorState, Field, Loading, Section } from '../components/ui';
 import { DateInput } from '../components/DateInput';
 import { todayIso } from '../format';
@@ -140,6 +140,13 @@ function PatientForm({ initial, patient }: { initial: FormState; patient?: Patie
   }
 
   const idOk = form.nationalId.replace(/[\s-]/g, '').length === 13 && isValidThaiNationalId(form.nationalId);
+  const hnFull = normalizeHn(form.hn);
+  // Check as soon as the ID or HN is complete, so staff do not fill in a whole form for someone already here.
+  const lookup = useRegisteredLookup(
+    !editing && idOk ? normalizeNationalId(form.nationalId) : '',
+    !editing && isValidHn(hnFull) ? hnFull : '',
+  );
+  const existing = lookup.data?.patient ?? null;
 
   return (
     <form onSubmit={submit} onKeyDown={enterToNext} noValidate>
@@ -168,6 +175,21 @@ function PatientForm({ initial, patient }: { initial: FormState; patient?: Patie
               <span className="up" style={{ fontSize: '0.85rem' }}>= {normalizeHn(form.hn)}</span>
             )}
           </Field>
+          {existing && (
+            <div className="alert" role="alert" style={{ gridColumn: '1 / -1' }}>
+              {existing.matchedBy === 'nationalId' ? 'เลขบัตรประชาชนนี้ลงทะเบียนแล้ว' : 'HN นี้ลงทะเบียนแล้ว'}:{' '}
+              <b>
+                {existing.title}{existing.firstName} {existing.lastName}
+              </b>{' '}
+              HN {existing.hn}
+              {existing.programStatus === 'discharged' && ' (จำหน่ายแล้ว)'}
+              <div className="row" style={{ marginTop: 8 }}>
+                <button type="button" className="btn" onClick={() => navigate(`/patients/${existing.id}`)}>
+                  เปิดประวัติผู้ป่วยรายนี้
+                </button>
+              </div>
+            </div>
+          )}
           <div className="name-row">
             <Field label="คำนำหน้า" htmlFor="title" error={errors.title}>
               <select id="title" value={form.title} onChange={(e) => set('title')(e.target.value)}>
@@ -203,7 +225,7 @@ function PatientForm({ initial, patient }: { initial: FormState; patient?: Patie
       </Section>
       {errors.form && <div className="alert" role="alert" style={{ marginTop: 14 }}>{errors.form}</div>}
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn" disabled={save.isPending}>
+        <button className="btn" disabled={save.isPending || !!existing}>
           <Icon name="save" />
           {save.isPending ? 'กำลังบันทึก…' : editing ? 'บันทึกการแก้ไข' : 'บันทึกผู้ป่วย'}
         </button>

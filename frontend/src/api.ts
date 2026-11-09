@@ -125,7 +125,25 @@ export const usePatients = (params: Record<string, string>) => {
 export const usePatient = (id: string) =>
   useQuery({ queryKey: ['patient', id], queryFn: () => api<{ patient: PatientProfile }>(`/patients/${id}`) });
 
-export const usePatientList = <T,>(id: string, kind: 'visits' | 'labs' | 'medications' | 'drps') =>
+export interface RegisteredMatch {
+  id: string;
+  hn: string;
+  title: string;
+  firstName: string;
+  lastName: string;
+  programStatus: 'active' | 'discharged';
+  matchedBy: 'nationalId' | 'hn';
+}
+
+/** Is this national ID or HN already registered? Pass '' for a value that is not complete yet. */
+export const useRegisteredLookup = (nationalId: string, hn: string) =>
+  useQuery({
+    queryKey: ['patients', 'lookup', nationalId, hn],
+    queryFn: () => api<{ patient: RegisteredMatch | null }>('/patients/lookup', { method: 'POST', json: { nationalId, hn } }),
+    enabled: !!(nationalId || hn),
+  });
+
+export const usePatientList =<T,>(id: string, kind: 'visits' | 'labs' | 'medications' | 'drps') =>
   useQuery({ queryKey: ['patient', id, kind], queryFn: () => api<{ items: T[] }>(`/patients/${id}/${kind}`) });
 
 /**
