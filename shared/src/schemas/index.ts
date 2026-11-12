@@ -12,7 +12,7 @@ export const DISCHARGE_CODES = ['01', '02', '03', '04', '05', '06', '07', '08', 
 export type DischargeCode = (typeof DISCHARGE_CODES)[number];
 export const LAB_TESTS = ['gfr', 'scr', 'hba1c', 'albumin', 'potassium', 'sbp', 'dbp'] as const;
 /** Usual albumin results; staff may also type another. Kept in `valueText`, with `value` 0. */
-export const ALBUMIN_LEVELS = ['>30', '30–300', '>300', 'ปกติ'] as const;
+export const ALBUMIN_LEVELS = ['<30', '30–300', '>300', 'ปกติ'] as const;
 export const YES_NO = ['yes', 'no'] as const;
 export const ACEI_ARB = ['yes', 'no'] as const;
 export const ACEI_ARB_DRUGS = ['enalapril', 'losartan'] as const;

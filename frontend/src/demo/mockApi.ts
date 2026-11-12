@@ -457,8 +457,11 @@ const routes: [string, RegExp, Handler][] = [
   ['GET', /^\/patients$/, (_m, _b, q) => {
     clinical();
     let items = summaries(q.get('status') === 'discharged' ? 'discharged' : 'active');
-    const text = q.get('q')?.toLowerCase();
-    if (text) items = items.filter((p) => `${p.hn} ${p.firstName} ${p.lastName}`.toLowerCase().includes(text));
+    const raw = q.get('q')?.trim() ?? '';
+    const text = raw.toLowerCase();
+    // "48/1931" is the clinic's HN shorthand; expand it the same way registration does.
+    const hn = raw.includes('/') ? normalizeHn(raw) : null;
+    if (text) items = items.filter((p) => p.hn === hn || `${p.hn} ${p.firstName} ${p.lastName}`.toLowerCase().includes(text));
     if (q.get('stage')) items = items.filter((p) => p.stage === q.get('stage'));
     if (q.get('color')) items = items.filter((p) => (p.color ?? 'none') === q.get('color'));
     const page = Math.max(1, Number(q.get('page') ?? 1));

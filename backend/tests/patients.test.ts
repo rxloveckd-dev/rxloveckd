@@ -60,6 +60,16 @@ describe('patients (US1)', () => {
     expect(await prisma.auditLog.count({ where: { action: 'view', entity: 'patient' } })).toBe(1);
   });
 
+  it('finds a patient by HN typed with the / shorthand', async () => {
+    const pharm = await login('pharm');
+    await pharm.post('/api/patients').send(patientBody({ hn: '480001931' })).expect(201);
+    const search = async (q: string) => (await pharm.get('/api/patients').query({ q })).body.items;
+    expect(await search('48/1931')).toHaveLength(1);
+    expect(await search('480001931')).toHaveLength(1);
+    expect(await search('1931')).toHaveLength(1);
+    expect(await search('48/1932')).toHaveLength(0);
+  });
+
   it('filters the list by stage and color', async () => {
     const pharm = await login('pharm');
     const { body } = await pharm.post('/api/patients').send(patientBody()).expect(201);

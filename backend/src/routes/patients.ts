@@ -67,7 +67,11 @@ export function patientsRouter(): Router {
     let items = await listSummaries(rules, new Date(), q.status);
     if (q.q) {
       const needle = q.q.toLowerCase();
-      items = items.filter((p) => `${p.hn} ${p.firstName} ${p.lastName}`.toLowerCase().includes(needle));
+      // "48/1931" is the clinic's HN shorthand; expand it the same way registration does.
+      const hn = q.q.includes('/') ? normalizeHn(q.q) : null;
+      items = items.filter(
+        (p) => p.hn === hn || `${p.hn} ${p.firstName} ${p.lastName}`.toLowerCase().includes(needle),
+      );
     }
     if (q.stage) items = items.filter((p) => p.stage === q.stage);
     if (q.color) items = items.filter((p) => (p.color ?? 'none') === q.color);
