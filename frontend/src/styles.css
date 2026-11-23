@@ -51,7 +51,8 @@ a { color: inherit; }
 .side a.active { background: var(--tab); color: var(--ink); font-weight: 600; }
 .side-foot { margin-top: auto; font-size: 0.85rem; color: var(--side-muted); padding: 8px; }
 .side-foot button { margin-top: 8px; }
-.main { padding: 28px 32px 60px; width: 100%; max-width: 1600px; }
+/* No max-width: on a wide screen a cap left a strip of empty space on the right. min-width: 0 lets wide tables scroll instead of widening the page. */
+.main { padding: 28px 32px 60px; width: 100%; min-width: 0; }
 .demo-bar { background: var(--yellow-bg); color: #6b4e00; padding: 6px 32px; font-size: 0.85rem; }
 
 /* ---------- section tab: the yellow highlighter label from the paper form */

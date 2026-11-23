@@ -17,6 +17,14 @@ describe('aceiArbCoverage', () => {
     ];
     expect(aceiArbCoverage(visits, ['a', 'b', 'c', 'd'])).toEqual({ yes: 1, no: 1, unknown: 2 });
   });
+
+  it('keeps the last answer when a later visit skipped the question', () => {
+    const visits = [
+      { patientId: 'a', visitDate: new Date('2026-01-01'), visitNo: 1, aceiArb: 'yes' },
+      { patientId: 'a', visitDate: new Date('2026-03-01'), visitNo: 2, aceiArb: null },
+    ];
+    expect(aceiArbCoverage(visits, ['a'])).toEqual({ yes: 1, no: 0, unknown: 0 });
+  });
 });
 
 describe('seePharmacistToday', () => {

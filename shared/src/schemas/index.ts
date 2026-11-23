@@ -147,7 +147,7 @@ const visitFields = {
 type VisitRuleInput = {
   visitDate: Date;
   nextAppointment?: Date | null;
-  aceiArb: 'yes' | 'no';
+  aceiArb?: 'yes' | 'no' | null;
   aceiArbDrug?: (typeof ACEI_ARB_DRUGS)[number] | null;
   aceiArbNoReason?: string | null;
   doctorMedChange?: 'yes' | 'no' | null;
@@ -159,10 +159,10 @@ type VisitRuleInput = {
   seasoning: 'reduce_needed' | 'adjusted';
 };
 const appointmentAfterVisit = (v: VisitRuleInput) => !v.nextAppointment || v.nextAppointment >= v.visitDate;
-const aceiReasonGiven = (v: VisitRuleInput) => v.aceiArb === 'yes' || !!v.aceiArbNoReason;
+const aceiReasonGiven = (v: VisitRuleInput) => v.aceiArb !== 'no' || !!v.aceiArbNoReason;
 const APPOINTMENT_RULE = { message: 'วันนัดครั้งต่อไปต้องไม่ก่อนวันที่มา', path: ['nextAppointment'] };
 const ACEI_RULE = { message: 'กรุณาระบุเหตุผลที่ไม่ได้รับยากลุ่ม ACEI/ARB', path: ['aceiArbNoReason'] };
-const aceiDrugChosen = (v: VisitRuleInput) => v.aceiArb === 'no' || !!v.aceiArbDrug;
+const aceiDrugChosen = (v: VisitRuleInput) => v.aceiArb !== 'yes' || !!v.aceiArbDrug;
 const ACEI_DRUG_RULE = { message: 'กรุณาเลือกยากลุ่ม ACEI/ARB ที่ผู้ป่วยใช้ (Enalapril หรือ Losartan)', path: ['aceiArbDrug'] };
 const doctorChangeGiven = (v: VisitRuleInput) => v.doctorMedChange !== 'yes' || !!v.doctorMedChangeDetail;
 const DOCTOR_CHANGE_RULE = { message: 'กรุณาระบุการปรับเปลี่ยนยาของแพทย์', path: ['doctorMedChangeDetail'] };
@@ -171,8 +171,8 @@ const SEE_PHARMACIST_RULE = { message: 'กรุณาเลือกว่า�
 /** Drops a "please specify" text whose answer no longer asks for one (e.g. ไม่ถูกต้อง changed to ถูกต้อง). */
 const clearUnusedDetails = <T extends VisitRuleInput>(v: T): T => ({
   ...v,
-  ...(v.aceiArb === 'yes' && { aceiArbNoReason: null }),
-  ...(v.aceiArb === 'no' && { aceiArbDrug: null }),
+  ...(v.aceiArb !== 'no' && { aceiArbNoReason: null }),
+  ...(v.aceiArb !== 'yes' && { aceiArbDrug: null }),
   ...(v.medicationTaking === 'correct' && { medicationTakingDetail: null }),
   ...(!v.herbalOrPainkiller && { herbalDetail: null }),
   ...(v.dietControlled && { dietDetail: null }),
@@ -181,18 +181,28 @@ const clearUnusedDetails = <T extends VisitRuleInput>(v: T): T => ({
   ...(!v.nextAppointment && { nextSeePharmacist: null }),
 });
 
+const ACEI_CHOSEN_RULE = { message: 'กรุณาเลือกว่ามียากลุ่ม ACEI/ARB หรือไม่', path: ['aceiArb'] };
+
+/**
+ * A new visit may leave ACEI/ARB unanswered only when the pharmacist says so (skipAceiArb: the
+ * "go straight to Note" tick). It is then saved as null, like visits from before the question.
+ * skipAceiArb itself is not stored.
+ */
 export const visitCreateSchema = z
   .object({
     ...visitFields,
+    aceiArb: z.enum(ACEI_ARB, { errorMap: () => ({ message: ACEI_CHOSEN_RULE.message }) }).nullable().optional(),
+    skipAceiArb: z.boolean().optional(),
     labs: z.array(labCreateSchema).max(20).default([]),
     medications: z.array(medicationCreateSchema).max(50).default([]),
   })
+  .refine((v) => !!v.aceiArb || v.skipAceiArb === true, ACEI_CHOSEN_RULE)
   .refine(appointmentAfterVisit, APPOINTMENT_RULE)
   .refine(aceiReasonGiven, ACEI_RULE)
   .refine(aceiDrugChosen, ACEI_DRUG_RULE)
   .refine(doctorChangeGiven, DOCTOR_CHANGE_RULE)
   .refine(seePharmacistChosen, SEE_PHARMACIST_RULE)
-  .transform(clearUnusedDetails);
+  .transform(({ skipAceiArb: _skip, ...v }) => clearUnusedDetails({ ...v, aceiArb: v.aceiArb ?? null }));
 export type VisitCreate = z.infer<typeof visitCreateSchema>;
 
 /** Edits the visit's own answers; its labs and medicines are edited in their own tabs. */

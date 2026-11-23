@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { gfrChangePercent, LABELS, potassiumOutOfRange, visitCreateSchema, type UrgencyColor } from '@rx/shared';
 import { ApiError, usePatient, usePatientMutation } from '../api';
@@ -9,6 +9,7 @@ import { enterToNext } from '../components/enterToNext';
 import { num, pct, todayIso } from '../format';
 import { Icon } from '../components/Icon';
 import { LeftoverEditor, leftoverPayload, type LeftoverRow } from '../components/LeftoverEditor';
+import { readJumpToNote } from '../visitPrefs';
 
 interface MedDraft {
   drugName: string;
@@ -56,6 +57,31 @@ export function VisitNew() {
   const [pickedColor, setPickedColor] = useState<UrgencyColor | '' | null>(null);
   const [meds, setMeds] = useState<MedDraft[]>([]);
   const [error, setError] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const loaded = !!patient.data;
+  // Ticked on the patient page: open in Note, and ACEI/ARB may be left unanswered.
+  const [noteFirst] = useState(readJumpToNote);
+
+  // The note box is at the bottom of a long form, so open with the cursor in it.
+  useEffect(() => {
+    const note = noteRef.current;
+    if (!loaded || !note || !noteFirst) return;
+    note.scrollIntoView({ block: 'center' });
+    note.focus({ preventScroll: true });
+  }, [loaded, noteFirst]);
+
+  // F9 saves, the same as pressing the save button.
+  const saving = save.isPending;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'F9') return;
+      e.preventDefault();
+      if (!saving) formRef.current?.requestSubmit();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [saving]);
 
   if (patient.isLoading) return <Loading />;
   if (patient.error || !patient.data) return <ErrorState error={patient.error} />;
@@ -95,6 +121,7 @@ export function VisitNew() {
       doctorMedChange: doctorChange || null,
       doctorMedChangeDetail: doctorChange === 'yes' ? doctorChangeDetail : null,
       aceiArb: aceiArb || undefined,
+      skipAceiArb: noteFirst || undefined,
       aceiArbNoReason: aceiArb === 'no' ? aceiArbNoReason : null,
       aceiArbDrug: aceiArb === 'yes' ? aceiArbDrug || null : null,
       labs,
@@ -117,7 +144,7 @@ export function VisitNew() {
   }
 
   return (
-    <form onSubmit={submit} onKeyDown={enterToNext} noValidate>
+    <form ref={formRef} onSubmit={submit} onKeyDown={enterToNext} noValidate>
       <div className="page-head">
         <div>
           <h1>บันทึกการติดตาม</h1>
@@ -158,7 +185,7 @@ export function VisitNew() {
 
       <Section title="ยาผู้ป่วย" action={<button type="button" className="btn secondary small" onClick={() => setMeds([...meds, blankMed()])}><Icon name="plus" />เพิ่มยา</button>}>
         <div className="grid-2" style={{ marginBottom: 14 }}>
-          <Field label="ยากลุ่ม ACEI/ARB">
+          <Field label={noteFirst ? 'ยากลุ่ม ACEI/ARB (ไม่บังคับ)' : 'ยากลุ่ม ACEI/ARB'}>
             <Choice name="aceiArb" value={aceiArb} options={[['yes', 'มี'], ['no', 'ไม่มี']]} onChange={setAceiArb} />
           </Field>
           {aceiArb === 'yes' && (
@@ -212,7 +239,7 @@ export function VisitNew() {
           </Field>
         </div>
         <div className="grid-2" style={{ marginTop: 14 }}>
-          <Field label="Note เภสัชกร" htmlFor="fu"><textarea id="fu" value={further} onChange={(e) => setFurther(e.target.value)} /></Field>
+          <Field label="Note เภสัชกร" htmlFor="fu"><textarea id="fu" ref={noteRef} value={further} onChange={(e) => setFurther(e.target.value)} /></Field>
           <Field label="นัดครั้งต่อไป" htmlFor="na"><DateInput id="na" kind="appointment" value={next} min={visitDate} onChange={setNext} /></Field>
           <Field label="ครั้งถัดไป">
             <Choice name="seePharmacist" value={seePharmacist} options={[['yes', LABELS.nextSeePharmacist.yes], ['no', LABELS.nextSeePharmacist.no]]} onChange={setSeePharmacist} />
@@ -225,7 +252,7 @@ export function VisitNew() {
 
       {error && <div className="alert" role="alert" style={{ marginTop: 14 }}>{error}</div>}
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn" disabled={save.isPending}><Icon name="save" />{save.isPending ? 'กำลังบันทึก…' : 'บันทึกการติดตาม'}</button>
+        <button className="btn" disabled={save.isPending} aria-keyshortcuts="F9" title="คีย์ลัด F9"><Icon name="save" />{save.isPending ? 'กำลังบันทึก…' : 'บันทึกการติดตาม (F9)'}</button>
         <button type="button" className="btn secondary" onClick={() => navigate(-1)}><Icon name="x" />ยกเลิก</button>
       </div>
     </form>

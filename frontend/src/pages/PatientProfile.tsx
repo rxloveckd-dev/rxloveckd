@@ -22,8 +22,9 @@ import { DateInput } from '../components/DateInput';
 import { enterToNext } from '../components/enterToNext';
 import { num, pct, thDate, todayIso } from '../format';
 import { Icon } from '../components/Icon';
+import { useJumpToNote } from '../visitPrefs';
 import { LeftoverEditor, leftoverPayload, leftoverRowsFrom } from '../components/LeftoverEditor';
-import { useVisitPrint, VisitDetails, VisitPrintSheet, VisitPrintSticker, type VisitRow } from '../components/VisitDetails';
+import { useVisitPrint, VisitDetails, VisitPrintSheet, VisitPrintSticker, type VisitGfr, type VisitRow } from '../components/VisitDetails';
 
 interface LabRow {
   id: string;
@@ -33,6 +34,7 @@ interface LabRow {
   unit: string;
   collectedAt: string;
   source: string;
+  visitId?: string | null;
   previous: number | null;
   previousText?: string | null;
   changePct: number | null;
@@ -212,6 +214,7 @@ function FormButtons({ busy, error, onCancel, label = 'บันทึกกา�
 function Visits({ patient }: { patient: PatientProfileData }) {
   const id = patient.id;
   const { data, isLoading, error } = usePatientList<VisitRow>(id, 'visits');
+  const labs = usePatientList<LabRow>(id, 'labs');
   const me = useMe();
   const printing = useVisitPrint();
   const [editing, setEditing] = useState<string | null>(null);
@@ -219,13 +222,22 @@ function Visits({ patient }: { patient: PatientProfileData }) {
   const remove = usePatientMutation<{ visitId: string }, unknown>(id, (b) => `/visits/${b.visitId}`, 'DELETE');
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} />;
+  // Lab history is newest first, so a visit with two GFR results keeps the later one.
+  const gfrByVisit = new Map<string, VisitGfr>();
+  for (const l of labs.data?.items ?? []) {
+    if (l.test === 'gfr' && l.visitId && !gfrByVisit.has(l.visitId)) {
+      gfrByVisit.set(l.visitId, { value: l.value, previous: l.previous, changePct: l.changePct });
+    }
+  }
+  // Until the labs load, leave the GFR row out rather than show every visit as having none.
+  const gfrOf = (visitId: string) => (labs.data ? gfrByVisit.get(visitId) ?? null : undefined);
   if (!data.items.length) return <Empty>ยังไม่มีการติดตาม <Link to={`/patients/${id}/visits/new`}>บันทึกครั้งแรก</Link></Empty>;
   return (
     <>
       {delError && <div className="alert" role="alert" style={{ marginBottom: 12 }}>{delError}</div>}
       {printing.error && <div className="alert" role="alert" style={{ marginBottom: 12 }}>{printing.error}</div>}
-      {printing.visit && printing.format === 'sheet' && <VisitPrintSheet patient={patient} visit={printing.visit} printedBy={me.data?.user.displayName} />}
-      {printing.visit && printing.format === 'sticker' && <VisitPrintSticker patient={patient} visit={printing.visit} />}
+      {printing.visit && printing.format === 'sheet' && <VisitPrintSheet patient={patient} visit={printing.visit} gfr={gfrOf(printing.visit.id)} printedBy={me.data?.user.displayName} />}
+      {printing.visit && printing.format === 'sticker' && <VisitPrintSticker patient={patient} visit={printing.visit} gfr={gfrOf(printing.visit.id)} />}
       <div className="grid-2">
         {data.items.map((v) => (
           <Section
@@ -257,7 +269,7 @@ function Visits({ patient }: { patient: PatientProfileData }) {
             {editing === v.id ? (
               <VisitEditForm patientId={id} visit={v} onDone={() => setEditing(null)} />
             ) : (
-              <VisitDetails visit={v} />
+              <VisitDetails visit={v} gfr={gfrOf(v.id)} />
             )}
           </Section>
         ))}
@@ -750,6 +762,7 @@ export function PatientProfile() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('visits');
   const [delError, setDelError] = useState('');
+  const [jumpToNote, setJumpToNote] = useJumpToNote();
   const removePatient = usePatientMutation<unknown, unknown>(null, `/patients/${id}`, 'DELETE');
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} />;
@@ -774,6 +787,10 @@ export function PatientProfile() {
           )}
           <div className="row" style={{ marginTop: 12 }}>
             <Link className="btn" to={`/patients/${p.id}/visits/new`}><Icon name="clipboard" />บันทึกการติดตามครั้งใหม่</Link>
+            <label className="row" style={{ gap: 6, fontSize: '0.95rem' }}>
+              <input type="checkbox" checked={jumpToNote} onChange={(e) => setJumpToNote(e.target.checked)} />
+              เปิดแล้วไปที่ช่อง Note เภสัชกรทันที (ไม่บังคับเลือก ACEI/ARB)
+            </label>
             <RowActions
               busy={removePatient.isPending}
               onEdit={() => navigate(`/patients/${p.id}/edit`)}

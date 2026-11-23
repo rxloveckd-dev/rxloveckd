@@ -31,17 +31,21 @@ export function lastMonths(n: number, today: Date): string[] {
 export interface AceiArbCoverage {
   yes: number;
   no: number;
-  /** No visit yet, or the latest visit was recorded before the question existed. */
+  /** No visit has answered the question: none yet, all from before it existed, or all skipped. */
   unknown: number;
 }
 
-/** ACEI/ARB status of each active patient, taken from their latest visit. */
+/**
+ * ACEI/ARB status of each active patient, taken from their latest visit that answered it. A visit
+ * saved with the question skipped (straight to Note) keeps the answer from the visit before.
+ */
 export function aceiArbCoverage(
   visits: { patientId: string; visitDate: Date; visitNo: number; aceiArb: string | null }[],
   activePatientIds: string[],
 ): AceiArbCoverage {
   const latest = new Map<string, (typeof visits)[number]>();
   for (const v of visits) {
+    if (v.aceiArb === null) continue;
     const cur = latest.get(v.patientId);
     const newer =
       !cur ||

@@ -55,6 +55,21 @@ describe('visits (US2)', () => {
     expect(ok.body.visit.aceiArbNoReason).toBe('โพแทสเซียมสูง แพทย์หยุดยา');
   });
 
+  it('leaves ACEI/ARB unanswered only when the pharmacist chose to skip it', async () => {
+    const { pharm, id } = await newPatient();
+    const missing = await pharm.post(`/api/patients/${id}/visits`).send(visitBody({ aceiArb: undefined, aceiArbDrug: undefined }));
+    expect(missing.status).toBe(400);
+    expect(missing.body.error.message).toBe('กรุณาเลือกว่ามียากลุ่ม ACEI/ARB หรือไม่');
+
+    const skipped = await pharm
+      .post(`/api/patients/${id}/visits`)
+      .send(visitBody({ aceiArb: undefined, aceiArbDrug: 'enalapril', skipAceiArb: true }))
+      .expect(201);
+    expect(skipped.body.visit.aceiArb).toBeNull();
+    expect(skipped.body.visit.aceiArbDrug).toBeNull();
+    expect(skipped.body.visit).not.toHaveProperty('skipAceiArb');
+  });
+
   it('stores HbA1c and blood pressure as lab results', async () => {
     const { pharm, id } = await newPatient();
     await pharm

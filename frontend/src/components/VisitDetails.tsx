@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { LABELS, parseLeftovers, type UrgencyColor } from '@rx/shared';
 import { logVisitPrint, type PatientProfile } from '../api';
-import { thDate } from '../format';
+import { num, pct, thDate } from '../format';
 import { leftoverText } from './LeftoverEditor';
 import { Urgency } from './ui';
 
@@ -29,6 +29,24 @@ export interface VisitRow {
   urgencyColor?: UrgencyColor | null;
   nextSeePharmacist?: 'yes' | 'no' | null;
   pharmacistName: string;
+}
+
+/** The GFR measured at a visit and its change versus the GFR before it (same unit). */
+export interface VisitGfr {
+  value: number;
+  previous: number | null;
+  changePct: number | null;
+}
+
+/** "42.0 (-12.5% จากครั้งก่อน 48.0)"; a fall of 10% or more is red, as elsewhere on the profile. */
+function GfrValue({ gfr }: { gfr: VisitGfr | null }) {
+  if (!gfr) return <>–</>;
+  return (
+    <span className={gfr.changePct !== null && gfr.changePct <= -10 ? 'down' : ''}>
+      {num(gfr.value, 1)}
+      {gfr.changePct === null ? ' (ไม่มีผลครั้งก่อน)' : ` (${pct(gfr.changePct)} จากครั้งก่อน ${num(gfr.previous, 1)})`}
+    </span>
+  );
 }
 
 /** รายการยาที่เหลือ as short lines; text saved before the list existed is shown as is. */
@@ -63,10 +81,16 @@ const STICKER_ROW_LABELS: typeof ROW_LABELS = {
 };
 
 /** One visit as label and value rows; the card and both printed forms use this, so they cannot drift apart. */
-export function VisitDetails({ visit: v, shortLabels = false }: { visit: VisitRow; shortLabels?: boolean }) {
+export function VisitDetails({ visit: v, gfr, shortLabels = false }: { visit: VisitRow; gfr?: VisitGfr | null; shortLabels?: boolean }) {
   const label = shortLabels ? STICKER_ROW_LABELS : ROW_LABELS;
   return (
     <dl className="visit-rows">
+      {gfr !== undefined && (
+        <>
+          <dt className="muted">GFR</dt>
+          <dd style={{ margin: 0 }}><GfrValue gfr={gfr} /></dd>
+        </>
+      )}
       <dt className="muted">{label.aceiArb}</dt>
       <dd style={{ margin: 0 }}>
         {v.aceiArb ? LABELS.aceiArb[v.aceiArb] : '–'}
@@ -121,7 +145,7 @@ function useHidePageForPrint() {
 }
 
 /** The paper copy: says whose visit it is, since the page around the card is not printed. */
-export function VisitPrintSheet({ patient: p, visit, printedBy }: { patient: PrintedPatient; visit: VisitRow; printedBy?: string }) {
+export function VisitPrintSheet({ patient: p, visit, gfr, printedBy }: { patient: PrintedPatient; visit: VisitRow; gfr?: VisitGfr | null; printedBy?: string }) {
   useHidePageForPrint();
   return createPortal(
     <article className="print-sheet">
@@ -131,7 +155,7 @@ export function VisitPrintSheet({ patient: p, visit, printedBy }: { patient: Pri
         <p>HN {p.hn}, เลขบัตร {p.nationalIdMasked}, อายุ {p.age} ปี, {LABELS.sex[p.sex]}</p>
       </header>
       <h2>ติดตามครั้งที่ {visit.visitNo} วันที่ {thDate(visit.visitDate)}</h2>
-      <VisitDetails visit={visit} />
+      <VisitDetails visit={visit} gfr={gfr} />
       <footer>
         พิมพ์เมื่อ {new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
         {printedBy ? ` โดย ${printedBy}` : ''}
@@ -146,7 +170,7 @@ export function VisitPrintSheet({ patient: p, visit, printedBy }: { patient: Pri
  * name and HN only, because the book leaves the clinic. The table header repeats on each label,
  * so a visit too long for one label still says whose it is on the next.
  */
-export function VisitPrintSticker({ patient: p, visit }: { patient: PrintedPatient; visit: VisitRow }) {
+export function VisitPrintSticker({ patient: p, visit, gfr }: { patient: PrintedPatient; visit: VisitRow; gfr?: VisitGfr | null }) {
   useHidePageForPrint();
   return createPortal(
     <article className="print-sheet sticker">
@@ -165,7 +189,7 @@ export function VisitPrintSticker({ patient: p, visit }: { patient: PrintedPatie
           <tr>
             <td>
               <b>ติดตามครั้งที่ {visit.visitNo} วันที่ {thDate(visit.visitDate)}</b>
-              <VisitDetails visit={visit} shortLabels />
+              <VisitDetails visit={visit} gfr={gfr} shortLabels />
             </td>
           </tr>
         </tbody>
