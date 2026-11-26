@@ -89,6 +89,7 @@ describe('printing a visit', () => {
     expect(order).toEqual(['log', 'print']);
     const sticker = document.querySelector('.print-sheet.sticker')!;
     expect(sticker.parentElement).toBe(document.body);
+    expect(sticker.querySelector('thead')!.textContent).toContain('เภสัชกรคลินิกรักษ์ไต');
     expect(sticker.querySelector('thead')!.textContent).toContain('นายทดสอบ ระบบ');
     expect(sticker.querySelector('thead')!.textContent).toContain('HN 000000123');
     expect(sticker.textContent).toContain('ติดตามครั้งที่ 1');

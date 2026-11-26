@@ -625,6 +625,7 @@ td.num, th.num { text-align: right; }
   .sticker table { width: 100%; }
   .sticker th, .sticker td { padding: 0; border: 0; color: #000; font: inherit; }
   .sticker b, .sticker .down { color: #000; font-weight: 700; }
+  .sticker-title { text-align: center; font-weight: 700; }
   .sticker-patient { display: flex; justify-content: space-between; gap: 2mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.6mm; margin-bottom: 0.8mm; }
   .sticker .visit-rows { gap: 0 1.8mm; }
   .sticker .muted { color: #000; }

@@ -178,6 +178,7 @@ export function VisitPrintSticker({ patient: p, visit, gfr }: { patient: Printed
         <thead>
           <tr>
             <th>
+              <div className="sticker-title">เภสัชกรคลินิกรักษ์ไต</div>
               <div className="sticker-patient">
                 <b>{p.title}{p.firstName} {p.lastName}</b>
                 <span>HN {p.hn}</span>
